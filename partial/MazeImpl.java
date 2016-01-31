@@ -269,6 +269,8 @@ public class MazeImpl extends Maze implements Serializable, ClientListener, Runn
         }
 
         public synchronized boolean clientFire(Client client) {
+            
+//if(Debug.debug) System.out.println(System.currentTimeMillis());
                 assert(client != null);
                 // If the client already has a projectile in play
                 // fail.
@@ -372,7 +374,8 @@ public class MazeImpl extends Maze implements Serializable, ClientListener, Runn
                                         while(it.hasNext()) {   
                                                 Object o = it.next();
                                                 assert(o instanceof Projectile);
-                                                deadPrj.addAll(moveProjectile((Projectile)o));
+                                                if(!deadPrj.contains((Projectile) o))
+                                                    deadPrj.addAll(moveProjectile((Projectile)o));
                                         }               
                                         it = deadPrj.iterator();
                                         while(it.hasNext()) {
@@ -430,7 +433,10 @@ public class MazeImpl extends Maze implements Serializable, ClientListener, Runn
                                 return deadPrj;
                         } else {
                         // Bullets destroy each other
+                            
                                 assert(contents instanceof Projectile);
+                            DirectedPoint d1 = (DirectedPoint) projectileMap.get(contents);
+if(Debug.debug) System.out.println(prj.getOwner().getName() + "'s bullet hit (" + dp.getX() + ", " + dp.getY() + ") " + "(" + d1.getX() + ", " + d1.getY() + ")");
                                 newCell.setContents(null);
                                 cell.setContents(null);
                                 deadPrj.add(prj);
@@ -492,10 +498,10 @@ public class MazeImpl extends Maze implements Serializable, ClientListener, Runn
                         point = new Point(randomGen.nextInt(maxX),randomGen.nextInt(maxY));
                         cell = getCellImpl(point);
                 }
-                Direction d = Direction.random();
-                while(cell.isWall(d)) {
-                        d = Direction.random();
-                }
+                Direction d = Direction.North;
+                //while(cell.isWall(d)) {
+                //        d = Direction.random();
+                //}
                 cell.setContents(target);
                 clientMap.put(target, new DirectedPoint(point, d));
                 update();
