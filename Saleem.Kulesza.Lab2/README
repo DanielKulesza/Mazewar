@@ -1,0 +1,28 @@
+Saad Saleem 1000541167
+Daniel Kulesza 998900649
+
+How to play the game:
+- First go to Saleem.Kulesza.Lab2/
+
+- Compile all files
+	make
+
+- Start server with
+	java Server <port number>
+
+- Start 4 Mazewar clients (with unique names)
+	java Mazewar <ip address> <port number>
+- Play the game
+
+Fixes:
+1) Packet ordering:
+	We added priority blocking queues on both server and client listener threads to keep ordering on incoming packets befor executing the events
+
+2) Hidden bug:
+   -	Bullets colliding but didn't disappear on all GUIs. This was fixed by making sure bullets were only moved if they haven't already been destroyed.
+   -	Bullets being moved individually on each client caused incosistency in the location of the bullets on different GUIs. This was fixed by syncronizing bullet movements with the server sending a packet to move them to all clients. We created a thread (MoveProjectileThread) to send this packet through the server every 200 milliseconds
+
+3)Respawn orientation:
+	Changed respawn orientation to  be fixed to North instead of randomn directions as they were different on different GUIs.
+
+4)Changed max players to 4
