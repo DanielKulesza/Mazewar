@@ -35,6 +35,10 @@ public abstract class Client {
          * @param maze The {@link Maze} in which the {@link Client} is being
          * placed.
          */
+		public String IPaddress;
+		public int port;
+		public int pid;
+		
         public void registerMaze(Maze maze) {
                 assert(maze != null);
                 assert(this.maze == null);

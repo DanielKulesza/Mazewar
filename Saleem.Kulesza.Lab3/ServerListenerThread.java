@@ -2,25 +2,28 @@ import java.io.IOException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.Comparator;
+import java.io.BufferedReader;
 
 public class ServerListenerThread implements Runnable {
 
-    private MSocket mSocket =  null;
+    private Socket socket =  null;
     private BlockingQueue eventQueue = null;
     private Comparator<MPacket> comparator = null; 
     private PriorityBlockingQueue<MPacket> incomingEventQueue = null;
     private int sequenceNumber = 0;
 
-    public ServerListenerThread( MSocket mSocket, BlockingQueue eventQueue){
-        this.mSocket = mSocket;
+    public ServerListenerThread( Socket socket, BlockingQueue eventQueue){
+        this.socket = socket;
         this.eventQueue = eventQueue;
 	this.comparator = new PacketComparator();
 	this.incomingEventQueue = new PriorityBlockingQueue<MPacket>(10, comparator);
+
     } 
 
     public void run() {
         MPacket received = null;
-        if(Debug.debug) System.out.println("Starting a listener");
+        if(Debug.debug) System.out.println("Starting a listener");		
+
         while(true){
             try{
 System.out.println("listening");

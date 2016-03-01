@@ -166,17 +166,19 @@ public class Mazewar extends JFrame {
                   Mazewar.quit();
                 }
                 
-                mSocket = new MSocket(serverHost, serverPort);
+                socket = new Socket(serverHost, serverPort);
+				ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+				ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
                 //Send hello packet to server
                 MPacket hello = new MPacket(name, MPacket.HELLO, MPacket.HELLO_INIT);
                 hello.mazeWidth = mazeWidth;
                 hello.mazeHeight = mazeHeight;
                 
                 if(Debug.debug) System.out.println("Sending hello");
-                mSocket.writeObject(hello);
+                out.writeObject(hello);
                 if(Debug.debug) System.out.println("hello sent");
                 //Receive response from server
-                MPacket resp = (MPacket)mSocket.readObject();
+                MPacket resp = (MPacket)in.readObject();
                 if(Debug.debug) System.out.println("Received response from server");
 
                 //Initialize queue of events
@@ -190,12 +192,18 @@ public class Mazewar extends JFrame {
                         if(player.name.equals(name)){
                         	if(Debug.debug)System.out.println("Adding guiClient: " + player);
                                 guiClient = new GUIClient(name, eventQueue);
+								guiClient.IPaddress = player.IPAddress;
+								guiClient.port = player.port;
+								guiClient.pid = player.pid;
                                 maze.addClientAt(guiClient, player.point, player.direction);
                                 this.addKeyListener(guiClient);
                                 clientTable.put(player.name, guiClient);
                         }else{
                         	if(Debug.debug)System.out.println("Adding remoteClient: " + player);
                                 RemoteClient remoteClient = new RemoteClient(player.name);
+								remoteClient.IPaddress = player.IPAddress;
+								remoteClient.port = player.port;
+								remoteClient.pid = player.pid;
                                 maze.addClientAt(remoteClient, player.point, player.direction);
                                 clientTable.put(player.name, remoteClient);
                         }

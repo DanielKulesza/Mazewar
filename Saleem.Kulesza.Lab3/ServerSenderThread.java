@@ -9,14 +9,17 @@ public class ServerSenderThread implements Runnable {
     private MSocket[] mSocketList = null;
     private BlockingQueue eventQueue = null;
     private int globalSequenceNumber;
-	private double time; 
+	private double time;
+	private HashMap<String, ClientData> clientsHashMap = null;
+	private ObjectOutputStream out = null;
     
-    public ServerSenderThread(MSocket[] mSocketList,
-                              BlockingQueue eventQueue){
-        this.mSocketList = mSocketList;
+    public ServerSenderThread(Socket[] socketList,
+                              BlockingQueue eventQueue, HashMap<String, ClientData> clientsHashMap){
+        this.socketList = socketList;
         this.eventQueue = eventQueue;
         this.globalSequenceNumber = 0;
 		this.time = System.currentTimeMillis();
+		this.clientsHashMap = clientsHashMap;
     }
 
     /*
@@ -26,7 +29,7 @@ public class ServerSenderThread implements Runnable {
     public void handleHello(){
         
         //The number of players
-        int playerCount = mSocketList.length;
+        int playerCount = socketList.length;
         Random randomGen = null;
         Player[] players = new Player[playerCount];
         if(Debug.debug) System.out.println("In handleHello");
@@ -48,6 +51,8 @@ public class ServerSenderThread implements Runnable {
                 
                 //Start them all facing North
                 Player player = new Player(hello.name, point, Player.North);
+				ClientData data = clientsHashMap.get(hello.name);
+				player.pid = playerCount;
                 players[i] = player;
             }
             
@@ -55,8 +60,13 @@ public class ServerSenderThread implements Runnable {
             hello.players = players;
             //Now broadcast the HELLO
             if(Debug.debug) System.out.println("Sending " + hello);
-            for(MSocket mSocket: mSocketList){
-                mSocket.writeObject(hello);   
+			int i = 0;
+            for(Socket socket: socketList){
+				players[i].setIP(socket.getRemoteSocketAddress().toString());
+				players[i].setPort(socket.getPort());
+				out = new ObjectOutputSttream(socket.getOutputStream());                
+				out.writeObject(hello); 
+				i++;  
             }
         }catch(InterruptedException e){
             e.printStackTrace();
