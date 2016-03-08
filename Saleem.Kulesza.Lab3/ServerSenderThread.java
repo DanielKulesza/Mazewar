@@ -2,24 +2,25 @@ import java.io.InvalidObjectException;
 import java.io.IOException;
 import java.util.concurrent.BlockingQueue;
 import java.util.Random;
+import java.io.ObjectOutputStream;
+import java.net.Socket;
 
 public class ServerSenderThread implements Runnable {
 
     //private ObjectOutputStream[] outputStreamList = null;
-    private MSocket[] mSocketList = null;
+    private Socket[] socketList = null;
     private BlockingQueue eventQueue = null;
     private int globalSequenceNumber;
-	private double time;
-	private HashMap<String, ClientData> clientsHashMap = null;
+    private double time;
+	
 	private ObjectOutputStream out = null;
     
     public ServerSenderThread(Socket[] socketList,
-                              BlockingQueue eventQueue, HashMap<String, ClientData> clientsHashMap){
+                              BlockingQueue eventQueue){
         this.socketList = socketList;
         this.eventQueue = eventQueue;
         this.globalSequenceNumber = 0;
-		this.time = System.currentTimeMillis();
-		this.clientsHashMap = clientsHashMap;
+	this.time = System.currentTimeMillis();
     }
 
     /*
@@ -51,8 +52,8 @@ public class ServerSenderThread implements Runnable {
                 
                 //Start them all facing North
                 Player player = new Player(hello.name, point, Player.North);
-				ClientData data = clientsHashMap.get(hello.name);
-				player.pid = playerCount;
+				player.name = hello.name;
+				player.pid = i;
                 players[i] = player;
             }
             
@@ -61,11 +62,20 @@ public class ServerSenderThread implements Runnable {
             //Now broadcast the HELLO
             if(Debug.debug) System.out.println("Sending " + hello);
 			int i = 0;
+
+	    for(Socket socket: socketList){
+			String str = socket.getRemoteSocketAddress().toString().substring(1);
+			String[] Ipaddress = str.split(":"); 
+			players[i].setIP(Ipaddress[0]);
+			players[i].setPort(socket.getPort());
+			i++;
+	    }
+	    i=0;
             for(Socket socket: socketList){
-				players[i].setIP(socket.getRemoteSocketAddress().toString());
-				players[i].setPort(socket.getPort());
-				out = new ObjectOutputSttream(socket.getOutputStream());                
-				out.writeObject(hello); 
+				
+				ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());                
+				out.writeObject(hello);
+				System.out.println("Sent: " + players[i].name + " " + players[i].port + " " + players[i].IPaddress + " " + players[i].pid);
 				i++;  
             }
         }catch(InterruptedException e){
@@ -85,7 +95,6 @@ public class ServerSenderThread implements Runnable {
         handleHello();
         
         while(true){
-System.out.println("sending");
             try{
 		
 				//if(System.currentTimeMillis() - time >= 200) {
@@ -101,12 +110,16 @@ System.out.println("sending");
 		            toBroadcast.sequenceNumber = this.globalSequenceNumber++;
                 	if(Debug.debug) System.out.println("Sending " + toBroadcast);
                 //Send it to all clients
-                	for(MSocket mSocket: mSocketList){
-                   		 mSocket.writeObject(toBroadcast);
+                	for(Socket socket: socketList){
+                   		 ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());                
+				out.writeObject(toBroadcast);
                 	}
             }catch(InterruptedException e){
-                System.out.println("Throwing Interrupt");
+                //System.out.println("Throwing Interrupt");
                 Thread.currentThread().interrupt();    
+            }catch(IOException e){
+            e.printStackTrace();
+            Thread.currentThread().interrupt();
             }
             
         }

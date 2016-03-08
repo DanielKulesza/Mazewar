@@ -85,6 +85,12 @@ public class Mazewar extends JFrame {
          */
         private Hashtable<String, Client> clientTable = null;
 
+
+	private Hashtable<Integer, String> pidClientMap = null;
+	
+	private Player[] players = null;
+
+	private MServerSocket mServerSocket = null;
         /**
          * A queue of events.
          */
@@ -166,10 +172,12 @@ public class Mazewar extends JFrame {
                   Mazewar.quit();
                 }
                 
-                socket = new Socket(serverHost, serverPort);
-				ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
-				ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
-                //Send hello packet to server
+                Socket socket = new Socket(serverHost, serverPort);
+		if (Debug.debug) System.out.println("setting up output stream");
+		ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+                
+		//Send hello packet to server
+		if (Debug.debug) System.out.println("creating Hello Packet");
                 MPacket hello = new MPacket(name, MPacket.HELLO, MPacket.HELLO_INIT);
                 hello.mazeWidth = mazeWidth;
                 hello.mazeHeight = mazeHeight;
@@ -178,21 +186,27 @@ public class Mazewar extends JFrame {
                 out.writeObject(hello);
                 if(Debug.debug) System.out.println("hello sent");
                 //Receive response from server
-                MPacket resp = (MPacket)in.readObject();
+		if (Debug.debug) System.out.println("setting up input stream");
+		ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+                
+		MPacket resp = (MPacket)in.readObject();
                 if(Debug.debug) System.out.println("Received response from server");
-
+		socket.close();
                 //Initialize queue of events
                 eventQueue = new LinkedBlockingQueue<MPacket>();
                 //Initialize hash table of clients to client name 
                 clientTable = new Hashtable<String, Client>(); 
-                
+                pidClientMap = new Hashtable<Integer, String>();
                 // Create the GUIClient and connect it to the KeyListener queue
                 //RemoteClient remoteClient = null;
+		players = resp.players;
                 for(Player player: resp.players){  
+			System.out.println(player.name + " " + player.IPaddress + " " + player.port + " " + player.pid);
                         if(player.name.equals(name)){
+				
                         	if(Debug.debug)System.out.println("Adding guiClient: " + player);
-                                guiClient = new GUIClient(name, eventQueue);
-								guiClient.IPaddress = player.IPAddress;
+                                GUIClient guiClient = new GUIClient(name, eventQueue);
+								guiClient.IPaddress = player.IPaddress;
 								guiClient.port = player.port;
 								guiClient.pid = player.pid;
                                 maze.addClientAt(guiClient, player.point, player.direction);
@@ -201,12 +215,13 @@ public class Mazewar extends JFrame {
                         }else{
                         	if(Debug.debug)System.out.println("Adding remoteClient: " + player);
                                 RemoteClient remoteClient = new RemoteClient(player.name);
-								remoteClient.IPaddress = player.IPAddress;
+								remoteClient.IPaddress = player.IPaddress;
 								remoteClient.port = player.port;
 								remoteClient.pid = player.pid;
                                 maze.addClientAt(remoteClient, player.point, player.direction);
                                 clientTable.put(player.name, remoteClient);
                         }
+			pidClientMap.put(player.pid,player.name);
                 }
                 
                 // Use braces to force constructors not to be called at the beginning of the
@@ -286,11 +301,23 @@ public class Mazewar extends JFrame {
          and the ClientListenerThread which is responsible for 
          listening for events
         */
-        private void startThreads(){
-                //Start a new sender thread 
-                new Thread(new ClientSenderThread(mSocket, eventQueue)).start();
-                //Start a new listener thread 
-                new Thread(new ClientListenerThread(mSocket, clientTable)).start();    
+        private void startThreads(String host, int port){
+                //Start a new sender thread
+		//3 sender threads
+		mServerSocket = new MServerSocket(port);
+		int i = 0; int j=0;
+		for(Player player: players){
+			j=0;			
+			if (players.pid == i){
+				while(j<players.length()-1){
+					MSocket mSocket = mServerSocket.accept();
+					new Thread(new ClientListenerThread(mSocket, clientTable)).start();				
+		                	new Thread(new ClientSenderThread(mSocket, eventQueue)).start();
+                //Start a new listener thread - 4 threads that receives all packets and puts them in main receiver queue
+		
+                
+		//New thread to process receiver queue- pop the packets sequentially and place in respective process queues - If the process is the sequencer, then assign seq no for event packets as they come
+		//If the packet is a order packet then we can then search within the desired queue for packet, and send it to the event queue of the process
         }
 
         
@@ -305,6 +332,6 @@ public class Mazewar extends JFrame {
              int port = Integer.parseInt(args[1]);
              /* Create the GUI */
              Mazewar mazewar = new Mazewar(host, port);
-             mazewar.startThreads();
+             mazewar.startThreads(host,port);
         }
 }

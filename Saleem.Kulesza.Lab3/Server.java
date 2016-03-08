@@ -1,20 +1,19 @@
 import java.io.IOException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.net.ServerSocket
-import java.net.Socket
+import java.net.ServerSocket;
+import java.net.Socket;
 
 public class Server {
     
 	//The maximum of clients that will join
 	//Server waits until the max number of clients to join 
-    private static final int MAX_CLIENTS = 4;
+    private static final int MAX_CLIENTS = 2;
     private ServerSocket serverSocket = null;
     private int clientCount; //The number of clients before game starts
     private Socket[] socketList = null; //A list of MSockets
     private BlockingQueue eventQueue = null; //A list of events
-	private HashMap<String, ClientData> clientsHashMap= null;
-	private BufferedReader in = null;
+
     /*
     * Constructor
     */
@@ -24,8 +23,7 @@ public class Server {
         if(Debug.debug) System.out.println("Listening on port: " + port);
         socketList = new Socket[MAX_CLIENTS];
         eventQueue = new LinkedBlockingQueue<MPacket>();
-		clientsHashMap = new HashMap();
-		this.in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+
     }
     
     /*
@@ -45,8 +43,8 @@ public class Server {
         }
         
         //Start a new sender thread 
-        new Thread(new ServerSenderThread(socketList, eventQueue, clientsHashMap)).start();
-		new Thread(new MoveProjectileThread(eventQueue)).start();
+        new Thread(new ServerSenderThread(socketList, eventQueue)).start();
+		//new Thread(new MoveProjectileThread(eventQueue)).start();
     }
 
         

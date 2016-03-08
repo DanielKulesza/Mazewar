@@ -3,6 +3,9 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.Comparator;
 import java.io.BufferedReader;
+import java.net.Socket;
+import java.io.ObjectInputStream;
+
 
 public class ServerListenerThread implements Runnable {
 
@@ -27,14 +30,15 @@ public class ServerListenerThread implements Runnable {
         while(true){
             try{
 System.out.println("listening");
-                received = (MPacket) mSocket.readObject();
+		ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+                received = (MPacket) in.readObject();
                 if(Debug.debug) System.out.println("Received: " + received);
 		
 		incomingEventQueue.put(received);
 	
 		//System.out.println("QUEUE PEEK: " + incomingEventQueue.peek());
 		while(incomingEventQueue.peek().sequenceNumber != this.sequenceNumber) {
-			received = (MPacket) mSocket.readObject();
+			received = (MPacket) in.readObject();
 			//System.out.println("SEQ NUM : " + received.sequenceNumber);
 			//System.out.println("Listener SEQ NUM :" + this.sequenceNumber);
 			incomingEventQueue.put(received);
