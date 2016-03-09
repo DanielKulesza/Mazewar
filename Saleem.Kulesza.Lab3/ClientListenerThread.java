@@ -28,15 +28,17 @@ public class ClientListenerThread implements Runnable {
         if(Debug.debug) System.out.println("Starting ClientListenerThread");
         while(true){
             try{
-               	
-		received = (MPacket) mSocket.readObject();
+System.out.println("reading");               	
+		received = (MPacket) this.mSocket.readObject();
+System.out.println(received);
 		eventQueue.put(received);
 	
 		while(eventQueue.peek().sequenceNumber != this.sequenceNumber) {
-			
+			System.out.println("looking at event queue");
 			received = (MPacket) mSocket.readObject();
 			eventQueue.put(received);
 		}
+
 
 		while((eventQueue.peek() != null) && (eventQueue.peek().sequenceNumber == this.sequenceNumber)) {
 			this.sequenceNumber++;
@@ -51,7 +53,7 @@ public class ClientListenerThread implements Runnable {
 				}
 			}
 			else {
-//System.out.println("not moving bullets" + received.name);
+System.out.println("not moving bullets" + received.name);
 				client = clientTable.get(received.name);
 				if(received.event == MPacket.UP){
 					client.forward();

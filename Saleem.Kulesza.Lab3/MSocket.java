@@ -63,7 +63,7 @@ public class MSocket{
     //DELAY_WEIGHT = 100, DELAY_THRESHOLD = 0,UNORDER_FACTOR = 1, DROP_RATE = 0.6
 
     /*************Member objects for communication*************/
-    private Socket socket = null;
+    public Socket socket = null;
     private ObjectInputStream in = null;
     private ObjectOutputStream out = null;
 
@@ -136,7 +136,8 @@ public class MSocket{
                     if(Debug.debug) System.out.println("Average packets per event is " + (double)rcvdCount / (double)rcvdEvent.size());
                     if(Debug.debug) System.out.println("Average traffic size per event:" + (double)rcvdBytes / (double)rcvdEvent.size() + "\n");
                     ingressQueue.put(incoming);
-
+														
+					System.out.println(ingressQueue);
                     incoming = in.readObject();
                 }
             }catch(StreamCorruptedException e){
@@ -317,7 +318,7 @@ public class MSocket{
      ingress queue being automatically updated by another thread
     */
     public synchronized Object readObject() throws IOException, ClassNotFoundException{
-
+System.out.println("Msocket read");
         //First check if we are in the grace period
         if((new Date()).getTime() - creationTime.getTime() <
                 ERROR_FREE_TRANSMISSION_PERIOD){
@@ -330,8 +331,9 @@ public class MSocket{
         try{
             //Add a random delay
             int delay = getDelay();
+System.out.println("sleeping " + delay);
             Thread.sleep(delay);
-
+System.out.println("waking up");
             //Return the head of the queue- no reordering
             if(UNORDER_FACTOR == 0.0 || ingressQueue.size() < 2){
                 incoming = ingressQueue.take();
@@ -356,6 +358,7 @@ public class MSocket{
         }catch(InterruptedException e){
             e.printStackTrace();
         }
+System.out.println(incoming);
         return incoming;
     }
 
@@ -387,10 +390,12 @@ public class MSocket{
     public synchronized Object readObjectNoError() throws IOException{
         Object incoming = null;
         try{
+System.out.println("reading no error");
             incoming = ingressQueue.take();
         }catch(InterruptedException e){
             e.printStackTrace();
         }
+System.out.println(incoming);
         return incoming;
     }
 

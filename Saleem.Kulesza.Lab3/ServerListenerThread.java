@@ -26,37 +26,40 @@ public class ServerListenerThread implements Runnable {
     public void run() {
         MPacket received = null;
         if(Debug.debug) System.out.println("Starting a listener");		
+		try{
 
-        while(true){
-            try{
+		ObjectInputStream in = new ObjectInputStream(this.socket.getInputStream());
+        
+		while(true){
+            
 System.out.println("listening");
-		ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+		
                 received = (MPacket) in.readObject();
                 if(Debug.debug) System.out.println("Received: " + received);
 		
-		incomingEventQueue.put(received);
+		eventQueue.put(received);
 	
 		//System.out.println("QUEUE PEEK: " + incomingEventQueue.peek());
-		while(incomingEventQueue.peek().sequenceNumber != this.sequenceNumber) {
-			received = (MPacket) in.readObject();
+//		while(incomingEventQueue.peek().sequenceNumber != this.sequenceNumber) {
+//			received = (MPacket) in.readObject();
 			//System.out.println("SEQ NUM : " + received.sequenceNumber);
 			//System.out.println("Listener SEQ NUM :" + this.sequenceNumber);
-			incomingEventQueue.put(received);
+//			incomingEventQueue.put(received);
+//		}
+
+//		while((incomingEventQueue.peek() != null) && (incomingEventQueue.peek().sequenceNumber == this.sequenceNumber)) {
+//			this.sequenceNumber++;
+//			received = incomingEventQueue.poll();                
+//			eventQueue.put(received);   
+//		} 
 		}
 
-		while((incomingEventQueue.peek() != null) && (incomingEventQueue.peek().sequenceNumber == this.sequenceNumber)) {
-			this.sequenceNumber++;
-			received = incomingEventQueue.poll();                
-			eventQueue.put(received);   
-		} 
-            }catch(InterruptedException e){
-                e.printStackTrace();
-            }catch(IOException e){
-                e.printStackTrace();
-            }catch(ClassNotFoundException e){
-                e.printStackTrace();
-            }
-            
+        }catch(InterruptedException e){
+            e.printStackTrace();
+        }catch(IOException e){
+            e.printStackTrace();
+        }catch(ClassNotFoundException e){
+            e.printStackTrace();
         }
     }
 }

@@ -174,7 +174,7 @@ public class Mazewar extends JFrame {
                 
                 Socket socket = new Socket(serverHost, serverPort);
 		if (Debug.debug) System.out.println("setting up output stream");
-		ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+		out = new ObjectOutputStream(socket.getOutputStream());
                 
 		//Send hello packet to server
 		if (Debug.debug) System.out.println("creating Hello Packet");
@@ -187,11 +187,10 @@ public class Mazewar extends JFrame {
                 if(Debug.debug) System.out.println("hello sent");
                 //Receive response from server
 		if (Debug.debug) System.out.println("setting up input stream");
-		ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+		in = new ObjectInputStream(socket.getInputStream());
                 
 		MPacket resp = (MPacket)in.readObject();
                 if(Debug.debug) System.out.println("Received response from server");
-		socket.close();
                 //Initialize queue of events
                 eventQueue = new LinkedBlockingQueue<MPacket>();
                 //Initialize hash table of clients to client name 
@@ -205,7 +204,7 @@ public class Mazewar extends JFrame {
                         if(player.name.equals(name)){
 				
                         	if(Debug.debug)System.out.println("Adding guiClient: " + player);
-                                GUIClient guiClient = new GUIClient(name, eventQueue);
+                                guiClient = new GUIClient(name, eventQueue);
 								guiClient.IPaddress = player.IPaddress;
 								guiClient.port = player.port;
 								guiClient.pid = player.pid;
@@ -303,23 +302,63 @@ public class Mazewar extends JFrame {
         */
         private void startThreads(String host, int port){
                 //Start a new sender thread
+if(Debug.debug) System.out.println("starting threads");
 		//3 sender threads
-		mServerSocket = new MServerSocket(port);
-		int i = 0; int j=0;
+		try {
+
+		mServerSocket = new MServerSocket(port + guiClient.pid);
+
+		
+		int i = 0; int j=0, k = 0;
+		MSocket[] socketList = new MSocket[players.length - 1];
 		for(Player player: players){
 			j=0;			
-			if (players.pid == i){
-				while(j<players.length()-1){
-					MSocket mSocket = mServerSocket.accept();
-					new Thread(new ClientListenerThread(mSocket, clientTable)).start();				
-		                	new Thread(new ClientSenderThread(mSocket, eventQueue)).start();
+			if (guiClient.pid == i){
+				Integer x = i;
+				MPacket ping = new MPacket(x.toString(), 100, 102);
+				this.out.writeObject(ping);
+
+				while(j < players.length-1){
+if(Debug.debug) System.out.println("accepting connections");
+					
+					MSocket mSocketReceive = mServerSocket.accept();					
+					
+					
+					
+if(Debug.debug) System.out.println("ping");
+					new Thread(new ClientListenerThread(mSocketReceive, clientTable)).start();
+					
+//					if(Debug.debug && guiClient.pid == i) System.out.println(socketList[j].socket.getPort());
+					j++;	
+				}
+				this.in.readObject();
+			} else {
+					this.in.readObject();
+if(Debug.debug) System.out.println("ping2 " + (port + i)); 
+
+					MSocket mSocketSend = new MSocket(player.IPaddress, port + i);				            
+					socketList[k] = mSocketSend;
+					k++;
+			}
+			
+
+			i++;
+			
+		}
                 //Start a new listener thread - 4 threads that receives all packets and puts them in main receiver queue
-		
-                
+		new Thread(new ClientSenderThread(socketList, eventQueue)).start();
+         
 		//New thread to process receiver queue- pop the packets sequentially and place in respective process queues - If the process is the sequencer, then assign seq no for event packets as they come
 		//If the packet is a order packet then we can then search within the desired queue for packet, and send it to the event queue of the process
+		}catch(IOException e){
+            e.printStackTrace();
+            Thread.currentThread().interrupt();
+        }catch(ClassNotFoundException e){
+            e.printStackTrace();
         }
 
+		}
+		
         
         /**
          * Entry point for the game.  
@@ -332,6 +371,6 @@ public class Mazewar extends JFrame {
              int port = Integer.parseInt(args[1]);
              /* Create the GUI */
              Mazewar mazewar = new Mazewar(host, port);
-             mazewar.startThreads(host,port);
+             mazewar.startThreads(host, port + 1);
         }
 }

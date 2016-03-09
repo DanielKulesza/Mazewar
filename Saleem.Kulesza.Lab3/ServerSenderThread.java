@@ -13,7 +13,7 @@ public class ServerSenderThread implements Runnable {
     private int globalSequenceNumber;
     private double time;
 	
-	private ObjectOutputStream out = null;
+	private ObjectOutputStream[] outputStreams = null;
     
     public ServerSenderThread(Socket[] socketList,
                               BlockingQueue eventQueue){
@@ -21,6 +21,7 @@ public class ServerSenderThread implements Runnable {
         this.eventQueue = eventQueue;
         this.globalSequenceNumber = 0;
 	this.time = System.currentTimeMillis();
+		this.outputStreams = new ObjectOutputStream[socketList.length];
     }
 
     /*
@@ -71,13 +72,13 @@ public class ServerSenderThread implements Runnable {
 			i++;
 	    }
 	    i=0;
-            for(Socket socket: socketList){
-				
-				ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());                
-				out.writeObject(hello);
-				System.out.println("Sent: " + players[i].name + " " + players[i].port + " " + players[i].IPaddress + " " + players[i].pid);
-				i++;  
-            }
+        for(Socket socket: socketList){
+			
+			outputStreams[i] = new ObjectOutputStream(socket.getOutputStream());			               
+			outputStreams[i].writeObject(hello);
+			System.out.println("Sent: " + players[i].name + " " + players[i].port + " " + players[i].IPaddress + " " + players[i].pid);
+			i++;  
+        }
         }catch(InterruptedException e){
             e.printStackTrace();
             Thread.currentThread().interrupt();    
@@ -93,7 +94,28 @@ public class ServerSenderThread implements Runnable {
         MPacket toBroadcast = null;
         this.time = System.currentTimeMillis();
         handleHello();
-        
+		
+		try{
+		
+		int j = 0;
+		for(int i = 0; i < this.socketList.length; i++) {
+			toBroadcast = (MPacket)eventQueue.take();
+			j = 0;
+			for(Socket socket : this.socketList) {
+			if(Debug.debug)System.out.println("sending ping " + outputStreams[j]);
+				outputStreams[j].writeObject(toBroadcast);
+				j++;
+			}
+			
+		}		
+        }catch(InterruptedException e){
+                //System.out.println("Throwing Interrupt");
+            Thread.currentThread().interrupt();    
+        }catch(IOException e){
+        	e.printStackTrace();
+        	Thread.currentThread().interrupt();
+        }
+
         while(true){
             try{
 		
@@ -110,17 +132,18 @@ public class ServerSenderThread implements Runnable {
 		            toBroadcast.sequenceNumber = this.globalSequenceNumber++;
                 	if(Debug.debug) System.out.println("Sending " + toBroadcast);
                 //Send it to all clients
-                	for(Socket socket: socketList){
-                   		 ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());                
-				out.writeObject(toBroadcast);
-                	}
+ //               	for(Socket socket: socketList){
+ //                  		 ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());                
+//				out.writeObject(toBroadcast);
+//                	}
             }catch(InterruptedException e){
                 //System.out.println("Throwing Interrupt");
                 Thread.currentThread().interrupt();    
-            }catch(IOException e){
-            e.printStackTrace();
-            Thread.currentThread().interrupt();
             }
+//catch(IOException e){
+//            e.printStackTrace();
+//            Thread.currentThread().interrupt();
+//            }
             
         }
     }

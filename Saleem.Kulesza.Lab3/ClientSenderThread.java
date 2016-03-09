@@ -4,13 +4,13 @@ import java.util.concurrent.BlockingQueue;
 
 public class ClientSenderThread implements Runnable {
 
-    private MSocket mSocket = null;
+    private MSocket[] socketList = null;
     private BlockingQueue<MPacket> eventQueue = null;
-    private int sequenceNumber = 1; //Start at 1 for hello packets
+    private int sequenceNumber = 0; //Start at 1 for hello packets
     
-    public ClientSenderThread(MSocket mSocket,
+    public ClientSenderThread(MSocket[] socketList,
                               BlockingQueue eventQueue){
-        this.mSocket = mSocket;
+        this.socketList = socketList;
         this.eventQueue = eventQueue;
     }
     
@@ -23,7 +23,9 @@ public class ClientSenderThread implements Runnable {
                 toServer = (MPacket)eventQueue.take();
 		toServer.sequenceNumber = this.sequenceNumber;
                 if(Debug.debug) System.out.println("Sending " + toServer);
-                mSocket.writeObject(toServer);
+                for(MSocket mSocket: this.socketList) {
+					mSocket.writeObject(toServer);
+				}
 		this.sequenceNumber++;    
             }catch(InterruptedException e){
                 e.printStackTrace();
