@@ -310,8 +310,8 @@ if(Debug.debug) System.out.println("starting threads");
 		
 		Comparator<MPacket> comparator = new PacketComparator(); 
 		
-		BlockingQueue<MPacket> incomingQueue = new BlockingQueue<MPacket>();
-		BlockingQueue<MPacket> outgoingQueue = new BlockingQueue<MPacket>();
+		BlockingQueue<MPacket> incomingQueue = new LinkedBlockingQueue<MPacket>();
+		BlockingQueue<MPacket> outgoingQueue = new LinkedBlockingQueue<MPacket>();
 		PriorityBlockingQueue<MPacket> masterOrderQueue = new PriorityBlockingQueue<MPacket>(10, comparator);
 		BlockingQueue<MPacket>[] masterHoldingList = new LinkedBlockingQueue<MPacket>[players.length];
 		for(int i = 0; i < players.length; i++) {
