@@ -11,16 +11,38 @@ public class ClientListenerThread implements Runnable {
     private MSocket mSocket  =  null;
     private Hashtable<String, Client> clientTable = null;
 	private int sequenceNumber;
+	private boolean self = false;
+	private BlockingQueue<MPacket> incomingQueue = null;
+	private boolean sequencer = null;
+	private PriorityBlockingQueue<MPacket> masterOrderQueue = null;
+	private BlockingQueue<MPacket> masterHoldingList = null;
+	private int pid = -1;
 
     public ClientListenerThread( MSocket mSocket,
-                                Hashtable<String, Client> clientTable){
+                                Hashtable<String, Client> clientTable, PriorityBlockingQueue<MPacket> selfEventQueue, incomingQueue, sequencer, PriorityBlockingQueue<MPacket> masterOrderQueue, BlockingQueue<MPacket> masterHoldingList[]){
 	this.comparator = new PacketComparator();
-	this.eventQueue = new PriorityBlockingQueue<MPacket>(10, comparator);
+	if(selfEventQueue == null) this.eventQueue = new PriorityBlockingQueue<MPacket>(10, comparator);
+	else {
+		this.eventQueue = selfEventQueue;
+		self = true;
+	}
 	this.sequenceNumber = 0;
-        this.mSocket = mSocket;
+        if(!self) this.mSocket = mSocket;
         this.clientTable = clientTable;
+		this.incomingQueue = incomingQueue;
+		this.sequencer = sequencer;
+		this.masterOrderQueue = masterOrderQueue;
+		this.masterHoldingList = masterHoldingList;
         if(Debug.debug) System.out.println("Instatiating ClientListenerThread");
     }
+
+	MPacket processOrderPacket(MPacket orderPacket) {
+		String name = orderPacket.name;
+		String[] info = name.split(",");
+		orderPacket.sequenceNumber = info[2].parseInt(); 
+		
+		return orderPacket;
+	}
 
     public void run() {
         MPacket received = null;
@@ -28,23 +50,52 @@ public class ClientListenerThread implements Runnable {
         if(Debug.debug) System.out.println("Starting ClientListenerThread");
         while(true){
             try{
-System.out.println("reading");               	
-		received = (MPacket) this.mSocket.readObject();
-System.out.println(received);
-		eventQueue.put(received);
-	
-		while(eventQueue.peek().sequenceNumber != this.sequenceNumber) {
-			System.out.println("looking at event queue");
-			received = (MPacket) mSocket.readObject();
-			eventQueue.put(received);
+               	
+		if(!self) {
+			boolean receivedOrder = true;
+			while(receivedOrder) {			
+				received = (MPacket) this.mSocket.readObject();
+
+				if(received.type == 300) {
+					MPacket mpacket = processOrderPacket(received);					
+					masterOrderQueue.add(mpacket);
+					receivedOrder = true;
+				}
+			}
+
+			eventQueue.put(received);			
+
+			while(eventQueue.peek().sequenceNumber != this.sequenceNumber) {
+				System.out.println("looking at event queue");
+				boolean receivedOrder = true;
+				while(receivedOrder) {			
+					received = (MPacket) this.mSocket.readObject();
+
+					if(received.type == 300) {
+					 	MPacket mpacket = processOrderPacket(received);					
+						masterOrderQueue.add(mpacket);
+						receivedOrder = true;
+					}
+				}
+
+				eventQueue.put(received);
+			}
 		}
 
 
 		while((eventQueue.peek() != null) && (eventQueue.peek().sequenceNumber == this.sequenceNumber)) {
 			this.sequenceNumber++;
 			received = eventQueue.poll();
+			
+			if(sequencer) incomingQueue.add(received);
+			
+			if(pid == -1) pid = clientTable.find(received.name).pid;
 
-			 System.out.println("Received " + received);
+			masterHoldingList[pid].add(received);
+
+			System.out.println("Received " + received);
+			
+			
 			if(received.name.equals("everyone")) {
 //			System.out.println("moving bullets");
 				for(String client_name : clientTable.keySet()) {

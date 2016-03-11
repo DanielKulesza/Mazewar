@@ -59,9 +59,12 @@ public class MPacket implements Serializable {
             case 200:
                 typeStr = "ACTION";
                 break;
+			case 300:
+				typeStr = "ORDER";
+				break;
             default:
                 typeStr = "ERROR";
-                break;        
+                break;
         }
         switch(event){
             case 101:
@@ -70,6 +73,7 @@ public class MPacket implements Serializable {
             case 102:
                 eventStr = "HELLO_RESP";
                 break;
+
             case 201:
                 eventStr = "UP";
                 break;
@@ -87,6 +91,9 @@ public class MPacket implements Serializable {
                 break;
 			case 206:
 				eventStr = "MOVE_PROJECTILE";
+				break;
+			case 301:
+				eventStr = "ORDER";
 				break;
             default:
                 eventStr = "ERROR";

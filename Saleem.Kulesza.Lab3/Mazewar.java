@@ -34,6 +34,8 @@ import java.net.Socket;
 import java.util.Hashtable;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.PriorityBlockingQueue;
+import java.util.Comparator;
 
 /**
  * The entry point and glue code for the game.  It also contains some helpful
@@ -305,9 +307,19 @@ public class Mazewar extends JFrame {
 if(Debug.debug) System.out.println("starting threads");
 		//3 sender threads
 		try {
-
+		
+		Comparator<MPacket> comparator = new PacketComparator(); 
+		
+		BlockingQueue<MPacket> incomingQueue = new BlockingQueue<MPacket>();
+		BlockingQueue<MPacket> outgoingQueue = new BlockingQueue<MPacket>();
+		PriorityBlockingQueue<MPacket> masterOrderQueue = new BlockingQueue<MPacket>(10, comparator);
+		BlockingQueue<MPacket>[] masterHoldingList = new BlockingQueue<MPacket>[players.length];
+		for(int i = 0; i < players.length; i++) {
+			masterHoldingList[i] = new BlockingQueue();
+		}
+		
+		
 		mServerSocket = new MServerSocket(port + guiClient.pid);
-
 		
 		int i = 0; int j=0, k = 0;
 		MSocket[] socketList = new MSocket[players.length - 1];
@@ -320,13 +332,12 @@ if(Debug.debug) System.out.println("starting threads");
 
 				while(j < players.length-1){
 if(Debug.debug) System.out.println("accepting connections");
-					
+					boolean sequencer = (i == 0);					
+			
 					MSocket mSocketReceive = mServerSocket.accept();					
 					
-					
-					
 if(Debug.debug) System.out.println("ping");
-					new Thread(new ClientListenerThread(mSocketReceive, clientTable)).start();
+					new Thread(new ClientListenerThread(mSocketReceive, clientTable, null, incomingQueue, sequencer, masterOrderQueue, masterHoldingList)).start();
 					
 //					if(Debug.debug && guiClient.pid == i) System.out.println(socketList[j].socket.getPort());
 					j++;	
@@ -345,8 +356,15 @@ if(Debug.debug) System.out.println("ping2 " + (port + i));
 			i++;
 			
 		}
+		
+		
+		PriorityBlockingQueue<MPacket> selfEventQueue = new PriorityBlockingQueue<MPacket>(10, comparator);
+		new Thread(new ClientListenerThread(null, clientTable, selfEventQueue, outgoingQueue, masterOrderQueue, masterHoldingList)).start();
                 //Start a new listener thread - 4 threads that receives all packets and puts them in main receiver queue
-		new Thread(new ClientSenderThread(socketList, eventQueue)).start();
+		new Thread(new ClientSenderThread(socketList, eventQueue, selfEventQueue)).start();
+
+		if(guiClient.pid == 0)
+			new Thread(new SequencerThread(incomingQueue, eventQueue)).start();
          
 		//New thread to process receiver queue- pop the packets sequentially and place in respective process queues - If the process is the sequencer, then assign seq no for event packets as they come
 		//If the packet is a order packet then we can then search within the desired queue for packet, and send it to the event queue of the process
