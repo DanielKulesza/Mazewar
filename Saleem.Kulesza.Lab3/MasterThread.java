@@ -15,13 +15,23 @@ public class MasterThread implements Runnable {
     private int sequenceNumber;
     private Hashtable<String, Client> clientTable = null;
     private Comparator<MPacket> comparator = null;
+	private PriorityBlockingQueue<MPacket> sequencerHoldbackQueue = null;
+	private BlockingQueue outgoingRetransmitQueue = null;
+	private double timer;
+	private String name;
+
+	
     //private PriorityBlockingQueue<MPacket> processingQueue = null;
     
-    public MasterThread(PriorityBlockingQueue<MPacket> masterOrderQueue, BlockingQueue<MPacket> masterHoldingList[], Hashtable<String, Client> clientTable){
+    public MasterThread(PriorityBlockingQueue<MPacket> masterOrderQueue, BlockingQueue<MPacket> masterHoldingList[], Hashtable<String, Client> clientTable, PriorityBlockingQueue<MPacket> sequencerHoldbackQueue, String name, BlockingQueue outgoingRetransmitQueue ){
         this.masterOrderQueue = masterOrderQueue;
         this.masterHoldingList = masterHoldingList;
         this.sequenceNumber = 0;
         this.clientTable = clientTable;
+		this.sequencerHoldbackQueue = sequencerHoldbackQueue;
+		this.name = name;
+		this.outgoingRetransmitQueue = outgoingRetransmitQueue;
+		
         //this.comparator = new PacketComparator();
         //this. processingQueue = new PriorityBlockingQueue<MPacket>(10, comparator);
     }
@@ -33,11 +43,24 @@ public class MasterThread implements Runnable {
         if(Debug.debug) System.out.println("Starting MasterThread");
         while(true){
 			try {
+
+
             	//wait for next order packet
-		        while(masterOrderQueue.peek() == null || masterOrderQueue.peek().sequenceNumber != this.sequenceNumber) {
+				int timeouts = 0;
+				this.timer = System.currentTimeMillis();
+		        while(masterOrderQueue.peek() != null && masterOrderQueue.peek().sequenceNumber != this.sequenceNumber && timeouts <= 3) {
 		            //do nothing
-		        }
-		        
+					System.out.println("waiting for order packet " + this.timer + " " + System.currentTimeMillis());
+					if(System.currentTimeMillis() - this.timer > 300) {
+						timeouts++;
+						this.timer = System.currentTimeMillis();
+						int myPID = clientTable.get(name).pid;
+						String send = myPID + "," + this.sequenceNumber;
+						MPacket retransmit = new MPacket(send, 400, 402);
+						outgoingRetransmitQueue.add(retransmit);
+				    }
+				}
+			
 		        
 		        //process packets with new sequence number
 		        while((masterOrderQueue.peek() != null) && (masterOrderQueue.peek().sequenceNumber == this.sequenceNumber)) {

@@ -30,6 +30,7 @@ public class MPacket implements Serializable {
     
     //The sequence number of the event
     public int sequenceNumber;
+	public double timestamp;
 
     //These are used to initialize the board
     public int mazeSeed;
@@ -62,6 +63,9 @@ public class MPacket implements Serializable {
 			case 300:
 				typeStr = "ORDER";
 				break;
+			case 400:
+				typeStr = "RETRANSMIT";
+				break;
             default:
                 typeStr = "ERROR";
                 break;
@@ -93,6 +97,12 @@ public class MPacket implements Serializable {
 				eventStr = "MOVE_PROJECTILE";
 				break;
 			case 301:
+				eventStr = "ORDER";
+				break;
+			case 401:
+				eventStr = "EVENT";
+				break;
+			case 402:
 				eventStr = "ORDER";
 				break;
             default:

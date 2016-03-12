@@ -18,9 +18,14 @@ public class ClientListenerThread implements Runnable {
 	private PriorityBlockingQueue<MPacket> masterOrderQueue = null;
 	private BlockingQueue<MPacket>[] masterHoldingList = null;
 	private int pid = -1;
+	private double timer = 0;
+	private BlockingQueue outgoingRetransmitQueue = null;
+	private BlockingQueue incomingRetransmitQueue = null;
+	private String name;
 
-    public ClientListenerThread( MSocket mSocket,
-                                Hashtable<String, Client> clientTable, BlockingQueue incomingQueue, boolean sequencer, PriorityBlockingQueue<MPacket> masterOrderQueue, BlockingQueue<MPacket>[] masterHoldingList){
+    public ClientListenerThread( String name, MSocket mSocket,
+                                Hashtable<String, Client> clientTable, BlockingQueue incomingQueue, boolean sequencer, PriorityBlockingQueue<MPacket> masterOrderQueue, BlockingQueue<MPacket>[] masterHoldingList, BlockingQueue outgoingRetransmitQueue, BlockingQueue incomingRetransmitQueue){
+		this.name = name;
         this.comparator = new PacketComparator();
         this.eventQueue = new PriorityBlockingQueue<MPacket>(10, comparator);
         this.mSocket = mSocket;
@@ -30,6 +35,8 @@ public class ClientListenerThread implements Runnable {
 		this.sequencer = sequencer;
 		this.masterOrderQueue = masterOrderQueue;
 		this.masterHoldingList = masterHoldingList;
+		this.outgoingRetransmitQueue = outgoingRetransmitQueue;
+		this.incomingRetransmitQueue = incomingRetransmitQueue;
         if(Debug.debug) System.out.println("Instatiating ClientListenerThread");
     }
 
@@ -64,35 +71,62 @@ public class ClientListenerThread implements Runnable {
                	
 		if(!self) {
 			boolean receivedOrder = true;
-			while(receivedOrder) {			
+			boolean retransmitting = true;
+			while(receivedOrder || retransmitting) {
+			
 				received = (MPacket) this.mSocket.readObject();
 
 				if(received.type == 300) {
 					MPacket mpacket = processOrderPacket(received);					
 					masterOrderQueue.add(mpacket);
 					receivedOrder = true;
-				} else {
-					eventQueue.add(received);
+				} else if(received.type == 400) {
+					incomingRetransmitQueue.add(received);
+					retransmitting = true;
+				}	
+				else {
+					retransmitting = false;
 					receivedOrder = false;
+					eventQueue.add(received);
 				}
-			}
+			}		
 
-			while(eventQueue.peek().sequenceNumber != this.sequenceNumber) {
+			int timeouts = 0;
+			this.timer = System.currentTimeMillis();
+			while(eventQueue.peek().sequenceNumber != this.sequenceNumber && timeouts <= 3) {
+				System.out.println("waiting for event packet " + this.timer + " " + System.currentTimeMillis());
+				if(System.currentTimeMillis() - this.timer > 300) {
+					timeouts++;
+					this.timer = System.currentTimeMillis();
+					int myPID = clientTable.get(name).pid;
+					String send = myPID + "," + pid + "," + this.sequenceNumber;
+					MPacket retransmit = new MPacket(send, 400, 401);
+					outgoingRetransmitQueue.add(retransmit);
+				}
 				System.out.println("looking at event queue");
 				receivedOrder = true;
-				while(receivedOrder) {			
+				retransmitting = true;
+				while(receivedOrder || retransmitting) {
+			
 					received = (MPacket) this.mSocket.readObject();
 
 					if(received.type == 300) {
-					 	MPacket mpacket = processOrderPacket(received);					
+						MPacket mpacket = processOrderPacket(received);					
 						masterOrderQueue.add(mpacket);
 						receivedOrder = true;
-					} else {
-						eventQueue.add(received);
+					} else if(received.type == 400) {
+						incomingRetransmitQueue.add(received);
+						retransmitting = true;
+					}	
+					else {
+						retransmitting = false;
 						receivedOrder = false;
+						eventQueue.add(received);
 					}
 				}
 			}
+
+			if(timeouts == 4) System.out.println("FAILURE");
 		} else {
 			boolean receivedOrder = true;
 			while(receivedOrder) {
@@ -127,7 +161,7 @@ public class ClientListenerThread implements Runnable {
 			masterHoldingList[pid].add(received);
 
 
-			System.out.println("Received " + received);
+			System.out.println("holding " + received);
 //			
 //			
 //			if(received.name.equals("everyone")) {

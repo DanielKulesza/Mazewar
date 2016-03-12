@@ -310,6 +310,12 @@ if(Debug.debug) System.out.println("starting threads");
 		
 		Comparator<MPacket> comparator = new PacketComparator(); 
 		
+		BlockingQueue outgoingRetransmitQueue = new LinkedBlockingQueue<MPacket>();
+		BlockingQueue incomingRetransmitQueue = new LinkedBlockingQueue<MPacket>();
+		
+		BlockingQueue outgoingOrderRetransmitQueue = new LinkedBlockingQueue<MPacket>();
+		//BlockingQueue incomingOrderRetransmitQueue = new LinkedBlockingQueue<MPacket>();
+
 		BlockingQueue incomingQueue = new LinkedBlockingQueue<MPacket>();
 		BlockingQueue outgoingQueue = new LinkedBlockingQueue<MPacket>();
 		PriorityBlockingQueue<MPacket> masterOrderQueue = new PriorityBlockingQueue<MPacket>(10, comparator);
@@ -317,7 +323,12 @@ if(Debug.debug) System.out.println("starting threads");
 		for(int i = 0; i < players.length; i++) {
 			masterHoldingList[i] = new LinkedBlockingQueue<MPacket>();
 		}
+
+		PriorityBlockingQueue<MPacket> holdbackQueue = new PriorityBlockingQueue<MPacket>(10, comparator);
+
+		PriorityBlockingQueue<MPacket> sequencerHoldbackQueue = new PriorityBlockingQueue<MPacket>(10, comparator);
 		
+		Hashtable<Integer, MSocket> pidtoMSocketMap = new Hashtable<Integer, MSocket>();
 		
 		mServerSocket = new MServerSocket(port + guiClient.pid);
 		
@@ -326,12 +337,13 @@ if(Debug.debug) System.out.println("starting threads");
         
         //Start a new listener thread - 4 threads that receives all packets and puts them in main receiver queue
 		for(Player player: players){
+			System.out.println(player.name);
 			j=0;			
 			if (guiClient.pid == i){
 				Integer x = i;
 				MPacket ping = new MPacket(x.toString(), 100, 102);
 				this.out.writeObject(ping);
-
+				String name = guiClient.getName();
 				while(j < players.length-1){
                     
                     if(Debug.debug) System.out.println("accepting connections");
@@ -340,7 +352,7 @@ if(Debug.debug) System.out.println("starting threads");
 					MSocket mSocketReceive = mServerSocket.accept();					
 					
                     if(Debug.debug) System.out.println("ping");
-					new Thread(new ClientListenerThread(mSocketReceive, clientTable, incomingQueue, sequencer, masterOrderQueue, masterHoldingList)).start();
+					new Thread(new ClientListenerThread(name, mSocketReceive, clientTable, incomingQueue, sequencer, masterOrderQueue, masterHoldingList, outgoingRetransmitQueue, incomingRetransmitQueue)).start();
 					
 //					if(Debug.debug && guiClient.pid == i) System.out.println(socketList[j].socket.getPort());
 					j++;	
@@ -348,10 +360,13 @@ if(Debug.debug) System.out.println("starting threads");
 				this.in.readObject();
 			} else {
 					this.in.readObject();
-                    if(Debug.debug) System.out.println("ping2 " + (port + i));
+                    if(Debug.debug) System.out.println("ping2 " + player.IPaddress + " " + (port + i));
 
 					MSocket mSocketSend = new MSocket(player.IPaddress, port + i);				            
 					socketList[k] = mSocketSend;
+					
+					pidtoMSocketMap.put(player.pid, mSocketSend);
+
 					k++;
 			}
 			
@@ -365,12 +380,14 @@ if(Debug.debug) System.out.println("starting threads");
 		new Thread(new ClientListenerThread(clientTable, selfEventQueue, incomingQueue, guiClient.pid == 0, masterOrderQueue, masterHoldingList)).start();
             
             
-		new Thread(new ClientSenderThread(socketList, eventQueue, selfEventQueue)).start();
+		new Thread(new ClientSenderThread(socketList, eventQueue, selfEventQueue, outgoingRetransmitQueue, incomingRetransmitQueue, pidtoMSocketMap, holdbackQueue, outgoingOrderRetransmitQueue, sequencerHoldbackQueue)).start();
 
 		if(guiClient.pid == 0) new Thread(new SequencerThread(incomingQueue, eventQueue, clientTable)).start();
             
-        new Thread(new MasterThread(masterOrderQueue, masterHoldingList, clientTable)).start();
-         
+        new Thread(new MasterThread(masterOrderQueue, masterHoldingList, clientTable,sequencerHoldbackQueue, guiClient.getName(), outgoingOrderRetransmitQueue)).start();
+
+		new Thread(new CleanupThread(holdbackQueue, sequencerHoldbackQueue)).start();         
+
 		//New thread to process receiver queue- pop the packets sequentially and place in respective process queues - If the process is the sequencer, then assign seq no for event packets as they come
 		//If the packet is a order packet then we can then search within the desired queue for packet, and send it to the event queue of the process
 		}catch(IOException e){

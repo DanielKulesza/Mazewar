@@ -20,7 +20,7 @@ public class ServerSenderThread implements Runnable {
         this.socketList = socketList;
         this.eventQueue = eventQueue;
         this.globalSequenceNumber = 0;
-	this.time = System.currentTimeMillis();
+		this.time = System.currentTimeMillis();
 		this.outputStreams = new ObjectOutputStream[socketList.length];
     }
 
@@ -65,6 +65,7 @@ public class ServerSenderThread implements Runnable {
 			int i = 0;
 
 	    for(Socket socket: socketList){
+			System.out.println("remote: " + socket.getRemoteSocketAddress() + " Inet: " + socket.getInetAddress());
 			String str = socket.getRemoteSocketAddress().toString().substring(1);
 			String[] Ipaddress = str.split(":"); 
 			players[i].setIP(Ipaddress[0]);

@@ -51,11 +51,11 @@ public class MSocket{
     //0 means no drops
     //for a large number of drops set to >0.5
     //Packets are only droped on send
-    public final double DROP_RATE = 0.0;
+    public final double DROP_RATE = 0.2;
 
     //Number of milli seconds after this MSocket is created
     //that packets are transmitted without network errors
-    public final long ERROR_FREE_TRANSMISSION_PERIOD = 30000; //30 seconds
+    public final long ERROR_FREE_TRANSMISSION_PERIOD = 5000; //3 seconds
 
     //To disable all network errors set:
     //DELAY_WEIGHT = 0, DELAY_THRESHOLD = 0, UNORDER_FACTOR = 0, DROP_RATE = 0
@@ -137,7 +137,7 @@ public class MSocket{
                     if(Debug.debug) System.out.println("Average traffic size per event:" + (double)rcvdBytes / (double)rcvdEvent.size() + "\n");
                     ingressQueue.put(incoming);
 														
-					System.out.println(ingressQueue);
+					//System.out.println(ingressQueue);
                     incoming = in.readObject();
                 }
             }catch(StreamCorruptedException e){
@@ -318,7 +318,7 @@ public class MSocket{
      ingress queue being automatically updated by another thread
     */
     public synchronized Object readObject() throws IOException, ClassNotFoundException{
-System.out.println("Msocket read");
+//System.out.println("Msocket read");
         //First check if we are in the grace period
         if((new Date()).getTime() - creationTime.getTime() <
                 ERROR_FREE_TRANSMISSION_PERIOD){
@@ -331,9 +331,9 @@ System.out.println("Msocket read");
         try{
             //Add a random delay
             int delay = getDelay();
-System.out.println("sleeping " + delay);
+//System.out.println("sleeping " + delay);
             Thread.sleep(delay);
-System.out.println("waking up");
+//System.out.println("waking up");
             //Return the head of the queue- no reordering
             if(UNORDER_FACTOR == 0.0 || ingressQueue.size() < 2){
                 incoming = ingressQueue.take();
@@ -358,7 +358,7 @@ System.out.println("waking up");
         }catch(InterruptedException e){
             e.printStackTrace();
         }
-System.out.println(incoming);
+//System.out.println(incoming);
         return incoming;
     }
 
@@ -390,12 +390,12 @@ System.out.println(incoming);
     public synchronized Object readObjectNoError() throws IOException{
         Object incoming = null;
         try{
-System.out.println("reading no error");
+//System.out.println("reading no error");
             incoming = ingressQueue.take();
         }catch(InterruptedException e){
             e.printStackTrace();
         }
-System.out.println(incoming);
+//System.out.println(incoming);
         return incoming;
     }
 
