@@ -175,11 +175,11 @@ public class Mazewar extends JFrame {
                 }
                 
                 Socket socket = new Socket(serverHost, serverPort);
-		if (Debug.debug) System.out.println("setting up output stream");
-		out = new ObjectOutputStream(socket.getOutputStream());
+				if (Debug.debug) System.out.println("setting up output stream");
+				out = new ObjectOutputStream(socket.getOutputStream());
                 
-		//Send hello packet to server
-		if (Debug.debug) System.out.println("creating Hello Packet");
+				//Send hello packet to server
+				if (Debug.debug) System.out.println("creating Hello Packet");
                 MPacket hello = new MPacket(name, MPacket.HELLO, MPacket.HELLO_INIT);
                 hello.mazeWidth = mazeWidth;
                 hello.mazeHeight = mazeHeight;
@@ -188,10 +188,10 @@ public class Mazewar extends JFrame {
                 out.writeObject(hello);
                 if(Debug.debug) System.out.println("hello sent");
                 //Receive response from server
-		if (Debug.debug) System.out.println("setting up input stream");
-		in = new ObjectInputStream(socket.getInputStream());
+				if (Debug.debug) System.out.println("setting up input stream");
+				in = new ObjectInputStream(socket.getInputStream());
                 
-		MPacket resp = (MPacket)in.readObject();
+				MPacket resp = (MPacket)in.readObject();
                 if(Debug.debug) System.out.println("Received response from server");
                 //Initialize queue of events
                 eventQueue = new LinkedBlockingQueue<MPacket>();
@@ -200,29 +200,29 @@ public class Mazewar extends JFrame {
                 pidClientMap = new Hashtable<Integer, String>();
                 // Create the GUIClient and connect it to the KeyListener queue
                 //RemoteClient remoteClient = null;
-		players = resp.players;
+				players = resp.players;
                 for(Player player: resp.players){  
-			System.out.println(player.name + " " + player.IPaddress + " " + player.port + " " + player.pid);
-                        if(player.name.equals(name)){
-				
-                        	if(Debug.debug)System.out.println("Adding guiClient: " + player);
-                                guiClient = new GUIClient(name, eventQueue);
-								guiClient.IPaddress = player.IPaddress;
-								guiClient.port = player.port;
-								guiClient.pid = player.pid;
-                                maze.addClientAt(guiClient, player.point, player.direction);
-                                this.addKeyListener(guiClient);
-                                clientTable.put(player.name, guiClient);
-                        }else{
-                        	if(Debug.debug)System.out.println("Adding remoteClient: " + player);
-                                RemoteClient remoteClient = new RemoteClient(player.name);
-								remoteClient.IPaddress = player.IPaddress;
-								remoteClient.port = player.port;
-								remoteClient.pid = player.pid;
-                                maze.addClientAt(remoteClient, player.point, player.direction);
-                                clientTable.put(player.name, remoteClient);
-                        }
-			pidClientMap.put(player.pid,player.name);
+					System.out.println(player.name + " " + player.IPaddress + " " + player.port + " " + player.pid);
+		    		if(player.name.equals(name)){
+		
+		            	if(Debug.debug)System.out.println("Adding guiClient: " + player);
+		                    guiClient = new GUIClient(name, eventQueue);
+							guiClient.IPaddress = player.IPaddress;
+							guiClient.port = player.port;
+							guiClient.pid = player.pid;
+		                    maze.addClientAt(guiClient, player.point, player.direction);
+		                    this.addKeyListener(guiClient);
+		                    clientTable.put(player.name, guiClient);
+		            }else{
+		            	if(Debug.debug)System.out.println("Adding remoteClient: " + player);
+		                    RemoteClient remoteClient = new RemoteClient(player.name);
+							remoteClient.IPaddress = player.IPaddress;
+							remoteClient.port = player.port;
+							remoteClient.pid = player.pid;
+		                    maze.addClientAt(remoteClient, player.point, player.direction);
+		                    clientTable.put(player.name, remoteClient);
+		            }
+					pidClientMap.put(player.pid,player.name);
                 }
                 
                 // Use braces to force constructors not to be called at the beginning of the
@@ -310,12 +310,12 @@ if(Debug.debug) System.out.println("starting threads");
 		
 		Comparator<MPacket> comparator = new PacketComparator(); 
 		
-		BlockingQueue<MPacket> incomingQueue = new LinkedBlockingQueue<MPacket>();
-		BlockingQueue<MPacket> outgoingQueue = new LinkedBlockingQueue<MPacket>();
+		BlockingQueue incomingQueue = new LinkedBlockingQueue<MPacket>();
+		BlockingQueue outgoingQueue = new LinkedBlockingQueue<MPacket>();
 		PriorityBlockingQueue<MPacket> masterOrderQueue = new PriorityBlockingQueue<MPacket>(10, comparator);
-		BlockingQueue<MPacket>[] masterHoldingList = new LinkedBlockingQueue<MPacket>[players.length];
+		BlockingQueue[] masterHoldingList = new BlockingQueue[players.length];
 		for(int i = 0; i < players.length; i++) {
-			masterHoldingList[i] = new BlockingQueue();
+			masterHoldingList[i] = new LinkedBlockingQueue<MPacket>();
 		}
 		
 		
@@ -340,7 +340,7 @@ if(Debug.debug) System.out.println("starting threads");
 					MSocket mSocketReceive = mServerSocket.accept();					
 					
                     if(Debug.debug) System.out.println("ping");
-					new Thread(new ClientListenerThread(mSocketReceive, clientTable, null, incomingQueue, sequencer, masterOrderQueue, masterHoldingList)).start();
+					new Thread(new ClientListenerThread(mSocketReceive, clientTable, incomingQueue, sequencer, masterOrderQueue, masterHoldingList)).start();
 					
 //					if(Debug.debug && guiClient.pid == i) System.out.println(socketList[j].socket.getPort());
 					j++;	
@@ -362,12 +362,12 @@ if(Debug.debug) System.out.println("starting threads");
 		
 		PriorityBlockingQueue<MPacket> selfEventQueue = new PriorityBlockingQueue<MPacket>(10, comparator);
             
-		new Thread(new ClientListenerThread(null, clientTable, selfEventQueue, outgoingQueue, masterOrderQueue, masterHoldingList)).start();
+		new Thread(new ClientListenerThread(clientTable, selfEventQueue, incomingQueue, guiClient.pid == 0, masterOrderQueue, masterHoldingList)).start();
             
             
 		new Thread(new ClientSenderThread(socketList, eventQueue, selfEventQueue)).start();
 
-		if(guiClient.pid == 0) new Thread(new SequencerThread(incomingQueue, eventQueue)).start();
+		if(guiClient.pid == 0) new Thread(new SequencerThread(incomingQueue, eventQueue, clientTable)).start();
             
         new Thread(new MasterThread(masterOrderQueue, masterHoldingList, clientTable)).start();
          

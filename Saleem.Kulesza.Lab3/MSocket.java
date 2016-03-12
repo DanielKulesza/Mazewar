@@ -51,7 +51,7 @@ public class MSocket{
     //0 means no drops
     //for a large number of drops set to >0.5
     //Packets are only droped on send
-    public final double DROP_RATE = 0.2;
+    public final double DROP_RATE = 0.0;
 
     //Number of milli seconds after this MSocket is created
     //that packets are transmitted without network errors
