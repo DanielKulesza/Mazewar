@@ -3,6 +3,7 @@ import java.io.ObjectInputStream;
 import java.util.Hashtable;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.Comparator;
+import java.util.concurrent.BlockingQueue;
 
 public class ClientListenerThread implements Runnable {
     
@@ -12,22 +13,17 @@ public class ClientListenerThread implements Runnable {
     private Hashtable<String, Client> clientTable = null;
 	private int sequenceNumber;
 	private boolean self = false;
-	private BlockingQueue<MPacket> incomingQueue = null;
-	private boolean sequencer = null;
+	private BlockingQueue incomingQueue = null;
+	private boolean sequencer;
 	private PriorityBlockingQueue<MPacket> masterOrderQueue = null;
-	private BlockingQueue<MPacket> masterHoldingList = null;
+	private BlockingQueue<MPacket>[] masterHoldingList = null;
 	private int pid = -1;
 
     public ClientListenerThread( MSocket mSocket,
-                                Hashtable<String, Client> clientTable, PriorityBlockingQueue<MPacket> selfEventQueue, incomingQueue, sequencer, PriorityBlockingQueue<MPacket> masterOrderQueue, BlockingQueue<MPacket> masterHoldingList[]){
+                                Hashtable<String, Client> clientTable, BlockingQueue incomingQueue, boolean sequencer, PriorityBlockingQueue<MPacket> masterOrderQueue, BlockingQueue<MPacket>[] masterHoldingList){
         this.comparator = new PacketComparator();
-        if(selfEventQueue == null) {
-            this.eventQueue = new PriorityBlockingQueue<MPacket>(10, comparator);
-            this.mSocket = mSocket;
-        } else {
-            this.eventQueue = selfEventQueue;
-            self = true;
-        }
+        this.eventQueue = new PriorityBlockingQueue<MPacket>(10, comparator);
+        this.mSocket = mSocket;
         this.sequenceNumber = 0;
         this.clientTable = clientTable;
 		this.incomingQueue = incomingQueue;
@@ -37,10 +33,24 @@ public class ClientListenerThread implements Runnable {
         if(Debug.debug) System.out.println("Instatiating ClientListenerThread");
     }
 
+	public ClientListenerThread( Hashtable<String, Client> clientTable, PriorityBlockingQueue<MPacket> selfEventQueue, BlockingQueue<MPacket> incomingQueue, boolean sequencer, PriorityBlockingQueue<MPacket> masterOrderQueue, BlockingQueue<MPacket>[] masterHoldingList){
+        this.comparator = new PacketComparator();
+        this.eventQueue = selfEventQueue;
+        this.self = true;
+        this.sequenceNumber = 0;
+        this.clientTable = clientTable;
+		this.incomingQueue = incomingQueue;
+		this.sequencer = sequencer;
+		this.masterOrderQueue = masterOrderQueue;
+		this.masterHoldingList = masterHoldingList;
+        if(Debug.debug) System.out.println("Instatiating ClientListenerThread");
+    }
+	
+
 	MPacket processOrderPacket(MPacket orderPacket) {
 		String name = orderPacket.name;
 		String[] info = name.split(",");
-		orderPacket.sequenceNumber = info[2].parseInt(); 
+		orderPacket.sequenceNumber = Integer.parseInt(info[2]); 
 		
 		return orderPacket;
 	}
@@ -61,14 +71,15 @@ public class ClientListenerThread implements Runnable {
 					MPacket mpacket = processOrderPacket(received);					
 					masterOrderQueue.add(mpacket);
 					receivedOrder = true;
+				} else {
+					eventQueue.add(received);
+					receivedOrder = false;
 				}
 			}
 
-	 		eventQueue.put(received);
-
 			while(eventQueue.peek().sequenceNumber != this.sequenceNumber) {
 				System.out.println("looking at event queue");
-				boolean receivedOrder = true;
+				receivedOrder = true;
 				while(receivedOrder) {			
 					received = (MPacket) this.mSocket.readObject();
 
@@ -76,10 +87,30 @@ public class ClientListenerThread implements Runnable {
 					 	MPacket mpacket = processOrderPacket(received);					
 						masterOrderQueue.add(mpacket);
 						receivedOrder = true;
+					} else {
+						eventQueue.add(received);
+						receivedOrder = false;
 					}
 				}
+			}
+		} else {
+			boolean receivedOrder = true;
+			while(receivedOrder) {
+				try {		
+					received = eventQueue.take();
 
-				eventQueue.put(received);
+					if(received.type == 300) {
+						MPacket mpacket = processOrderPacket(received);					
+						masterOrderQueue.add(mpacket);
+						receivedOrder = true;
+					} else {
+						eventQueue.add(received);
+						receivedOrder = false;
+					}
+				}catch(InterruptedException e){
+		            e.printStackTrace();
+		            Thread.currentThread().interrupt();    
+		        }
 			}
 		}
 
@@ -87,15 +118,16 @@ public class ClientListenerThread implements Runnable {
 		while((eventQueue.peek() != null) && (eventQueue.peek().sequenceNumber == this.sequenceNumber)) {
 			this.sequenceNumber++;
 			received = eventQueue.poll();
-			
+
 			if(sequencer) incomingQueue.add(received);
-			
-            //set the pid to waht client we're listening to
-			if(pid == -1) pid = clientTable.find(received.name).pid;
-            
+		
+	        //set the pid to waht client we're listening to
+			if(pid == -1) pid = clientTable.get(received.name).pid;
+	        
 			masterHoldingList[pid].add(received);
 
-//			System.out.println("Received " + received);
+
+			System.out.println("Received " + received);
 //			
 //			
 //			if(received.name.equals("everyone")) {
