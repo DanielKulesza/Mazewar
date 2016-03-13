@@ -386,7 +386,7 @@ if(Debug.debug) System.out.println("starting threads");
 
 		if(guiClient.pid == 0) new Thread(new SequencerThread(incomingQueue, eventQueue, clientTable)).start();
             
-        new Thread(new MasterThread(masterOrderQueue, masterHoldingList, clientTable,sequencerHoldbackQueue, guiClient.getName(), outgoingOrderRetransmitQueue)).start();
+        new Thread(new MasterThread(masterOrderQueue, masterHoldingList, clientTable,sequencerHoldbackQueue, guiClient.getName(), outgoingOrderRetransmitQueue, outgoingRetransmitQueue)).start();
 
 		new Thread(new CleanupThread(holdbackQueue, sequencerHoldbackQueue)).start();         
 

@@ -33,7 +33,7 @@ public class RetransmitThread implements Runnable {
             try{                
 				
 				if(outgoingRetransmitQueue.peek() != null) {
-					if(Debug.debug) System.out.println("asking for event packet");
+					if(Debug.debug) System.out.println("RetransmitThread: asking for event packet");
 					MPacket retransmit = (MPacket) outgoingRetransmitQueue.take();					
 					String[] info = retransmit.name.split(",");
 					int pid = Integer.parseInt(info[1]);
@@ -42,7 +42,7 @@ public class RetransmitThread implements Runnable {
 				}
 		    	
 				if(outgoingOrderRetransmitQueue.peek() != null) {
-					if(Debug.debug) System.out.println("asking for order packet");
+					if(Debug.debug) System.out.println("RetransmitThread: asking for order packet");
 					MPacket retransmit = (MPacket) outgoingOrderRetransmitQueue.take();
 					socketList[0].writeObject(retransmit);
 				}
@@ -50,7 +50,7 @@ public class RetransmitThread implements Runnable {
 				if(incomingRetransmitQueue.peek() != null) {
 					MPacket retransmit = (MPacket) incomingRetransmitQueue.take();
 					if(retransmit.event == 401) {
-                        if(Debug.debug) System.out.println("retransmitting for event packet");
+                        if(Debug.debug) System.out.println("RetransmitThread: retransmitting for event packet");
 						String[] info = retransmit.name.split(",");
 						int pid = Integer.parseInt(info[0]);
 						int seqNum = Integer.parseInt(info[2]);
@@ -67,9 +67,9 @@ public class RetransmitThread implements Runnable {
 								break;
 							}
 						}
-						if(!found)  System.out.println("FAILURE: Empty queue");
+						if(!found)  System.out.println("RetransmitThread: FAILURE: Empty queue");
 					} else {
-                        if(Debug.debug) System.out.println("retransmitting for order packet");
+                        if(Debug.debug) System.out.println("RetransmitThread: retransmitting for order packet");
 						String[] info = retransmit.name.split(",");
 						int pid = Integer.parseInt(info[0]);
 						int seqNum = Integer.parseInt(info[1]);
@@ -86,7 +86,7 @@ public class RetransmitThread implements Runnable {
 								break;
 							}
 						}
-						if(!found) System.out.println("FAILURE: Empty ueue");
+						if(!found) System.out.println("RetransmitThread: FAILURE: Empty ueue");
 					}
 				}
 

@@ -16,21 +16,23 @@ public class MasterThread implements Runnable {
     private Hashtable<String, Client> clientTable = null;
     private Comparator<MPacket> comparator = null;
 	private PriorityBlockingQueue<MPacket> sequencerHoldbackQueue = null;
-	private BlockingQueue outgoingRetransmitQueue = null;
+	private BlockingQueue outgoingOrderRetransmitQueue = null;
 	private double timer;
 	private String name;
+    private BlockingQueue outgoingRetransmitQueue = null;
 
 	
     //private PriorityBlockingQueue<MPacket> processingQueue = null;
     
-    public MasterThread(PriorityBlockingQueue<MPacket> masterOrderQueue, BlockingQueue<MPacket> masterHoldingList[], Hashtable<String, Client> clientTable, PriorityBlockingQueue<MPacket> sequencerHoldbackQueue, String name, BlockingQueue outgoingRetransmitQueue ){
+    public MasterThread(PriorityBlockingQueue<MPacket> masterOrderQueue, BlockingQueue<MPacket> masterHoldingList[], Hashtable<String, Client> clientTable, PriorityBlockingQueue<MPacket> sequencerHoldbackQueue, String name, BlockingQueue outgoingOrderRetransmitQueue, BlockingQueue outgoingRetransmitQueue ){
         this.masterOrderQueue = masterOrderQueue;
         this.masterHoldingList = masterHoldingList;
         this.sequenceNumber = 0;
         this.clientTable = clientTable;
 		this.sequencerHoldbackQueue = sequencerHoldbackQueue;
 		this.name = name;
-		this.outgoingRetransmitQueue = outgoingRetransmitQueue;
+		this.outgoingOrderRetransmitQueue = outgoingOrderRetransmitQueue;
+        this.outgoingRetransmitQueue = outgoingRetransmitQueue;
 		
         //this.comparator = new PacketComparator();
         //this. processingQueue = new PriorityBlockingQueue<MPacket>(10, comparator);
@@ -47,18 +49,23 @@ public class MasterThread implements Runnable {
                 int timeouts = 0, empty = 0;
                 this.timer = System.currentTimeMillis();
                 while(masterOrderQueue.peek() == null && timeouts < 3) {
+                    //System.out.println("MasterThread: waiting...");
                     empty = 0;
                     for(BlockingQueue queue: masterHoldingList) {
                         if(queue.peek() == null) empty++;
                     }
+                    //if(empty < masterHoldingList.length) System.out.println("MasterThread: waiting for order packet");
                     if(empty < masterHoldingList.length && System.currentTimeMillis() - this.timer > 300) {
-                        System.out.println("asking for order packet " + this.timer + " " + System.currentTimeMillis());
+                        System.out.println("MasterThread: NULL: asking for order packet " + this.timer + " " + System.currentTimeMillis());
                         timeouts++;
                         this.timer = System.currentTimeMillis();
                         int myPID = clientTable.get(name).pid;
                         String send = myPID + "," + this.sequenceNumber;
                         MPacket retransmit = new MPacket(send, 400, 402);
-                        outgoingRetransmitQueue.add(retransmit);
+                        outgoingOrderRetransmitQueue.add(retransmit);
+                    } else if(empty == masterHoldingList.length){
+                        //System.out.println("MasterThread: everthing is empty");
+                        this.timer = System.currentTimeMillis();
                     }
                 }
 
@@ -68,20 +75,20 @@ public class MasterThread implements Runnable {
 		        while(masterOrderQueue.peek() != null && masterOrderQueue.peek().sequenceNumber != this.sequenceNumber && timeouts < 3) {
 		            //do nothing
 					if(masterOrderQueue.peek().type == 300 && masterOrderQueue.peek().sequenceNumber < this.sequenceNumber) masterOrderQueue.poll();
-                    System.out.println("waiting for order packet ");
+                    System.out.println("MasterThread: waiting for order packet ");
 
 					if(System.currentTimeMillis() - this.timer > 300) {
-                        System.out.println("asking for order packet " + this.timer + " " + System.currentTimeMillis());
+                        System.out.println("MasterThread: asking for order packet " + this.timer + " " + System.currentTimeMillis());
 						timeouts++;
 						this.timer = System.currentTimeMillis();
 						int myPID = clientTable.get(name).pid;
 						String send = myPID + "," + this.sequenceNumber;
 						MPacket retransmit = new MPacket(send, 400, 402);
-						outgoingRetransmitQueue.add(retransmit);
+						outgoingOrderRetransmitQueue.add(retransmit);
 				    }
 				}
 			
-                if(timeouts == 3) System.out.println("FAILURE");
+                if(timeouts == 3) System.out.println("MasterThread: FAILURE");
                 
 		        //process packets with new sequence number
 		        while((masterOrderQueue.peek() != null) && (masterOrderQueue.peek().sequenceNumber == this.sequenceNumber)) {
@@ -94,13 +101,23 @@ public class MasterThread implements Runnable {
 		            int localSeqNum = Integer.parseInt(info[1]);
 		            
 		            received = masterHoldingList[pid].take();
-		            
+                    //int timeouts = 0;
+                    //this.timer = System.currentTimeMillis();
 		            while(received.sequenceNumber != localSeqNum) {
 		                masterHoldingList[pid].put(received);
-		                masterHoldingList[pid].take();
+//                        if(System.currentTimeMillis() - this.timer > 300) {
+//                            System.out.println("ClientListenerThread: asking for event packet " + this.timer + " " + System.currentTimeMillis());
+//                            timeouts++;
+//                            this.timer = System.currentTimeMillis();
+//                            int myPID = clientTable.get(name).pid;
+//                            String send = myPID + "," + pid + "," + this.sequenceNumber;
+//                            MPacket retransmit = new MPacket(send, 400, 401);
+//                            outgoingRetransmitQueue.add(retransmit);
+//                        }
+		                received = masterHoldingList[pid].take();
 		            }
 		            
-		            System.out.println("Received " + received);
+		            System.out.println("MasterThread: Received " + received);
 		            
 		            
 		            if(received.name.equals("everyone")) {
@@ -127,7 +144,7 @@ public class MasterThread implements Runnable {
 		                    throw new UnsupportedOperationException();
 		                }
 
-		            }
+                    }
 		            
 		        }
             }catch(InterruptedException e){

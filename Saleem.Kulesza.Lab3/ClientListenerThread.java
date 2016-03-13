@@ -96,7 +96,7 @@ public class ClientListenerThread implements Runnable {
 			while(eventQueue.peek().sequenceNumber != this.sequenceNumber && timeouts < 3) {
                 if(eventQueue.peek().type == 300 && eventQueue.peek().sequenceNumber < this.sequenceNumber) eventQueue.poll();
 				if(System.currentTimeMillis() - this.timer > 300) {
-                    System.out.println("asking for event packet " + this.timer + " " + System.currentTimeMillis());
+                    System.out.println("ClientListenerThread: asking for event packet " + this.timer + " " + System.currentTimeMillis());
 					timeouts++;
 					this.timer = System.currentTimeMillis();
 					int myPID = clientTable.get(name).pid;
