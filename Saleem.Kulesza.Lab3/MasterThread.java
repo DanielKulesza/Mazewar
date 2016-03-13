@@ -43,15 +43,35 @@ public class MasterThread implements Runnable {
         if(Debug.debug) System.out.println("Starting MasterThread");
         while(true){
 			try {
-
+                
+                int timeouts = 0, empty = 0;
+                this.timer = System.currentTimeMillis();
+                while(masterOrderQueue.peek() == null && timeouts < 3) {
+                    empty = 0;
+                    for(BlockingQueue queue: masterHoldingList) {
+                        if(queue.peek() == null) empty++;
+                    }
+                    if(empty < masterHoldingList.length && System.currentTimeMillis() - this.timer > 300) {
+                        System.out.println("asking for order packet " + this.timer + " " + System.currentTimeMillis());
+                        timeouts++;
+                        this.timer = System.currentTimeMillis();
+                        int myPID = clientTable.get(name).pid;
+                        String send = myPID + "," + this.sequenceNumber;
+                        MPacket retransmit = new MPacket(send, 400, 402);
+                        outgoingRetransmitQueue.add(retransmit);
+                    }
+                }
 
             	//wait for next order packet
-				int timeouts = 0;
+				timeouts = 0;
 				this.timer = System.currentTimeMillis();
-		        while(masterOrderQueue.peek() != null && masterOrderQueue.peek().sequenceNumber != this.sequenceNumber && timeouts <= 3) {
+		        while(masterOrderQueue.peek() != null && masterOrderQueue.peek().sequenceNumber != this.sequenceNumber && timeouts < 3) {
 		            //do nothing
-					System.out.println("waiting for order packet " + this.timer + " " + System.currentTimeMillis());
+					if(masterOrderQueue.peek().type == 300 && masterOrderQueue.peek().sequenceNumber < this.sequenceNumber) masterOrderQueue.poll();
+                    System.out.println("waiting for order packet ");
+
 					if(System.currentTimeMillis() - this.timer > 300) {
+                        System.out.println("asking for order packet " + this.timer + " " + System.currentTimeMillis());
 						timeouts++;
 						this.timer = System.currentTimeMillis();
 						int myPID = clientTable.get(name).pid;
@@ -61,7 +81,8 @@ public class MasterThread implements Runnable {
 				    }
 				}
 			
-		        
+                if(timeouts == 3) System.out.println("FAILURE");
+                
 		        //process packets with new sequence number
 		        while((masterOrderQueue.peek() != null) && (masterOrderQueue.peek().sequenceNumber == this.sequenceNumber)) {
 					this.sequenceNumber++;

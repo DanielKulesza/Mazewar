@@ -54,57 +54,57 @@ public class ClientSenderThread implements Runnable {
 				} else {
 					sequencerHoldbackQueue.add(toServer);
 				}
-				
-				System.out.println("check fo rettransmits");
-				if(outgoingRetransmitQueue.peek() != null) {
-					System.out.println("retransmitting for event packet");
-					MPacket retransmit = (MPacket) outgoingRetransmitQueue.take();					
-					String[] info = retransmit.name.split(",");
-					int pid = Integer.parseInt(info[1]);
-					MSocket mSocket = pidtoMSocketMap.get(pid);
-					mSocket.writeObject(retransmit);
-				}
-		    	
-				if(outgoingOrderRetransmitQueue.peek() != null) {
-					System.out.println("retransmitting for event packet");
-					MPacket retransmit = (MPacket) outgoingOrderRetransmitQueue.take();
-					socketList[0].writeObject(retransmit);
-				}
-
-				if(incomingRetransmitQueue.peek() != null) {
-					MPacket retransmit = (MPacket) incomingRetransmitQueue.take();
-					if(retransmit.event == 401) {					
-						String[] info = retransmit.name.split(",");
-						int pid = Integer.parseInt(info[0]);
-						int seqNum = Integer.parseInt(info[2]);
-						MPacket[] mPackets = (MPacket[]) holdbackQueue.toArray();
-						boolean found = false;
-						for(MPacket packet: mPackets) {
-							if(packet.sequenceNumber == seqNum) {
-								MSocket mSocket = pidtoMSocketMap.get(pid);
-								mSocket.writeObject(packet);
-								found = true;
-								break;
-							}
-						}
-						if(!found)  System.out.println("FAILURE");
-					} else {
-						String[] info = retransmit.name.split(",");
-						int pid = Integer.parseInt(info[0]);
-						int seqNum = Integer.parseInt(info[1]);
-						MPacket[] mPackets = (MPacket[]) sequencerHoldbackQueue.toArray();
-						boolean found = false;
-						for(MPacket packet: mPackets) {
-							if(packet.sequenceNumber == seqNum) {
-								MSocket mSocket = pidtoMSocketMap.get(pid);
-								mSocket.writeObject(packet);
-								found = true;
-								break;
-							}
-						}
-						if(!found) System.out.println("FAILURE");
-					}
-				}
+//				
+//				System.out.println("check fo retransmits");
+//				if(outgoingRetransmitQueue.peek() != null) {
+//					System.out.println("retransmitting for event packet");
+//					MPacket retransmit = (MPacket) outgoingRetransmitQueue.take();					
+//					String[] info = retransmit.name.split(",");
+//					int pid = Integer.parseInt(info[1]);
+//					MSocket mSocket = pidtoMSocketMap.get(pid);
+//					mSocket.writeObject(retransmit);
+//				}
+//		    	
+//				if(outgoingOrderRetransmitQueue.peek() != null) {
+//					System.out.println("retransmitting for order packet");
+//					MPacket retransmit = (MPacket) outgoingOrderRetransmitQueue.take();
+//					socketList[0].writeObject(retransmit);
+//				}
+//
+//				if(incomingRetransmitQueue.peek() != null) {
+//					MPacket retransmit = (MPacket) incomingRetransmitQueue.take();
+//					if(retransmit.event == 401) {					
+//						String[] info = retransmit.name.split(",");
+//						int pid = Integer.parseInt(info[0]);
+//						int seqNum = Integer.parseInt(info[2]);
+//						MPacket[] mPackets = (MPacket[]) holdbackQueue.toArray();
+//						boolean found = false;
+//						for(MPacket packet: mPackets) {
+//							if(packet.sequenceNumber == seqNum) {
+//								MSocket mSocket = pidtoMSocketMap.get(pid);
+//								mSocket.writeObject(packet);
+//								found = true;
+//								break;
+//							}
+//						}
+//						if(!found)  System.out.println("FAILURE");
+//					} else {
+//						String[] info = retransmit.name.split(",");
+//						int pid = Integer.parseInt(info[0]);
+//						int seqNum = Integer.parseInt(info[1]);
+//						MPacket[] mPackets = (MPacket[]) sequencerHoldbackQueue.toArray();
+//						boolean found = false;
+//						for(MPacket packet: mPackets) {
+//							if(packet.sequenceNumber == seqNum) {
+//								MSocket mSocket = pidtoMSocketMap.get(pid);
+//								mSocket.writeObject(packet);
+//								found = true;
+//								break;
+//							}
+//						}
+//						if(!found) System.out.println("FAILURE");
+//					}
+//				}
 
             }catch(InterruptedException e){
                 e.printStackTrace();

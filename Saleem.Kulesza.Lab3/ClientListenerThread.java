@@ -93,9 +93,10 @@ public class ClientListenerThread implements Runnable {
 
 			int timeouts = 0;
 			this.timer = System.currentTimeMillis();
-			while(eventQueue.peek().sequenceNumber != this.sequenceNumber && timeouts <= 3) {
-				System.out.println("waiting for event packet " + this.timer + " " + System.currentTimeMillis());
+			while(eventQueue.peek().sequenceNumber != this.sequenceNumber && timeouts < 3) {
+                if(eventQueue.peek().type == 300 && eventQueue.peek().sequenceNumber < this.sequenceNumber) eventQueue.poll();
 				if(System.currentTimeMillis() - this.timer > 300) {
+                    System.out.println("asking for event packet " + this.timer + " " + System.currentTimeMillis());
 					timeouts++;
 					this.timer = System.currentTimeMillis();
 					int myPID = clientTable.get(name).pid;
@@ -103,30 +104,30 @@ public class ClientListenerThread implements Runnable {
 					MPacket retransmit = new MPacket(send, 400, 401);
 					outgoingRetransmitQueue.add(retransmit);
 				}
-				System.out.println("looking at event queue");
-				receivedOrder = true;
-				retransmitting = true;
-				while(receivedOrder || retransmitting) {
-			
-					received = (MPacket) this.mSocket.readObject();
-
-					if(received.type == 300) {
-						MPacket mpacket = processOrderPacket(received);					
-						masterOrderQueue.add(mpacket);
-						receivedOrder = true;
-					} else if(received.type == 400) {
-						incomingRetransmitQueue.add(received);
-						retransmitting = true;
-					}	
-					else {
-						retransmitting = false;
-						receivedOrder = false;
-						eventQueue.add(received);
-					}
-				}
+//				System.out.println("looking at event queue");
+//				receivedOrder = true;
+//				retransmitting = true;
+//				while(receivedOrder || retransmitting) {
+//			
+//					received = (MPacket) this.mSocket.readObject();
+//
+//					if(received.type == 300) {
+//						MPacket mpacket = processOrderPacket(received);					
+//						masterOrderQueue.add(mpacket);
+//						receivedOrder = true;
+//					} else if(received.type == 400) {
+//						incomingRetransmitQueue.add(received);
+//						retransmitting = true;
+//					}	
+//					else {
+//						retransmitting = false;
+//						receivedOrder = false;
+//						eventQueue.add(received);
+//					}
+//				}
 			}
 
-			if(timeouts == 4) System.out.println("FAILURE");
+			if(timeouts == 3) System.out.println("FAILURE");
 		} else {
 			boolean receivedOrder = true;
 			while(receivedOrder) {
@@ -149,7 +150,7 @@ public class ClientListenerThread implements Runnable {
 		}
 
 
-		while((eventQueue.peek() != null) && (eventQueue.peek().sequenceNumber == this.sequenceNumber)) {
+		while((eventQueue.peek() != null) && eventQueue.peek().type == 200 && (eventQueue.peek().sequenceNumber == this.sequenceNumber)) {
 			this.sequenceNumber++;
 			received = eventQueue.poll();
 

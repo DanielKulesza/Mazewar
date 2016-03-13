@@ -381,6 +381,8 @@ if(Debug.debug) System.out.println("starting threads");
             
             
 		new Thread(new ClientSenderThread(socketList, eventQueue, selfEventQueue, outgoingRetransmitQueue, incomingRetransmitQueue, pidtoMSocketMap, holdbackQueue, outgoingOrderRetransmitQueue, sequencerHoldbackQueue)).start();
+        
+        new Thread(new RetransmitThread(socketList, outgoingRetransmitQueue, incomingRetransmitQueue, pidtoMSocketMap, holdbackQueue, outgoingOrderRetransmitQueue, sequencerHoldbackQueue)).start();
 
 		if(guiClient.pid == 0) new Thread(new SequencerThread(incomingQueue, eventQueue, clientTable)).start();
             

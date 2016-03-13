@@ -21,12 +21,18 @@ public class CleanupThread implements Runnable {
 	public void run() {
 		while(true) {
 			if(holdbackQueue.peek() != null) {
-				MPacket packet = holdbackQueue.poll();
-				if(System.currentTimeMillis() - packet.timestamp <= 1000) holdbackQueue.add(packet);
+				MPacket packet = holdbackQueue.peek();
+                if(packet != null && System.currentTimeMillis() - packet.timestamp > 10000) {
+                    holdbackQueue.poll();
+                    if(Debug.debug) System.out.println("removing event packet");
+                }
 			}
 			if(sequencerHoldbackQueue.peek() != null) {
-				MPacket packet = sequencerHoldbackQueue.poll();
-				if(System.currentTimeMillis() - packet.timestamp <= 1000) sequencerHoldbackQueue.add(packet);
+				MPacket packet = sequencerHoldbackQueue.peek();
+                if(packet != null && System.currentTimeMillis() - packet.timestamp > 60000) {
+                    sequencerHoldbackQueue.poll();
+                    if(Debug.debug) System.out.println("removing order packet");
+                }
 			}
 		}
 	}
