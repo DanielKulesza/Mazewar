@@ -20,6 +20,7 @@ public class MasterThread implements Runnable {
 	private double timer;
 	private String name;
     private BlockingQueue outgoingRetransmitQueue = null;
+    private int[] localSequenceNumbers;
 
 	
     //private PriorityBlockingQueue<MPacket> processingQueue = null;
@@ -31,6 +32,10 @@ public class MasterThread implements Runnable {
         this.clientTable = clientTable;
 		this.sequencerHoldbackQueue = sequencerHoldbackQueue;
 		this.name = name;
+		this.localSequenceNumbers = new int[masterHoldingList.length];
+		for(int i=0; i<masterHoldingList.length; i++){
+			this.localSequenceNumbers[i]= 0;
+		}
 		this.outgoingOrderRetransmitQueue = outgoingOrderRetransmitQueue;
         this.outgoingRetransmitQueue = outgoingRetransmitQueue;
 		
@@ -46,7 +51,7 @@ public class MasterThread implements Runnable {
         while(true){
 			try {
                 
-                int timeouts = 0, empty = 0;
+                int timeouts = 0, empty = 0, timeout_time = 300;
                 this.timer = System.currentTimeMillis();
                 while(masterOrderQueue.peek() == null && timeouts < 3) {
                     //System.out.println("MasterThread: waiting...");
@@ -55,12 +60,12 @@ public class MasterThread implements Runnable {
                         if(queue.peek() == null) empty++;
                     }
                     //if(empty < masterHoldingList.length) System.out.println("MasterThread: waiting for order packet");
-                    if(empty < masterHoldingList.length && System.currentTimeMillis() - this.timer > 300) {
+                    if(empty < masterHoldingList.length && System.currentTimeMillis() - this.timer > timeout_time*(timeouts+1)) {
                         System.out.println("MasterThread: NULL: asking for order packet " + this.timer + " " + System.currentTimeMillis());
                         timeouts++;
                         this.timer = System.currentTimeMillis();
                         int myPID = clientTable.get(name).pid;
-                        String send = myPID + "," + this.sequenceNumber;
+                        String send = myPID + "," + this.sequenceNumber + "," + this.localSequenceNumbers[myPID];
                         MPacket retransmit = new MPacket(send, 400, 402);
                         outgoingOrderRetransmitQueue.add(retransmit);
                     } else if(empty == masterHoldingList.length){
@@ -70,19 +75,18 @@ public class MasterThread implements Runnable {
                 }
 
             	//wait for next order packet
-				timeouts = 0;
 				this.timer = System.currentTimeMillis();
 		        while(masterOrderQueue.peek() != null && masterOrderQueue.peek().sequenceNumber != this.sequenceNumber && timeouts < 3) {
 		            //do nothing
 					if(masterOrderQueue.peek().type == 300 && masterOrderQueue.peek().sequenceNumber < this.sequenceNumber) masterOrderQueue.poll();
                     System.out.println("MasterThread: waiting for order packet ");
 
-					if(System.currentTimeMillis() - this.timer > 300) {
+					if(System.currentTimeMillis() - this.timer > timeout_time*(timeouts+1)) {
                         System.out.println("MasterThread: asking for order packet " + this.timer + " " + System.currentTimeMillis());
 						timeouts++;
 						this.timer = System.currentTimeMillis();
 						int myPID = clientTable.get(name).pid;
-						String send = myPID + "," + this.sequenceNumber;
+						String send = myPID + "," + this.sequenceNumber + "," + this.localSequenceNumbers[myPID];
 						MPacket retransmit = new MPacket(send, 400, 402);
 						outgoingOrderRetransmitQueue.add(retransmit);
 				    }
@@ -115,8 +119,10 @@ public class MasterThread implements Runnable {
 //                            outgoingRetransmitQueue.add(retransmit);
 //                        }
 		                received = masterHoldingList[pid].take();
+		                
 		            }
 		            
+		            this.localSequenceNumbers[pid] = received.sequenceNumber+1;
 		            System.out.println("MasterThread: Received " + received);
 		            
 		            

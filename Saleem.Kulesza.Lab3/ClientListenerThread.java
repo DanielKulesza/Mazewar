@@ -80,6 +80,10 @@ public class ClientListenerThread implements Runnable {
 					MPacket mpacket = processOrderPacket(received);					
 					masterOrderQueue.add(mpacket);
 					receivedOrder = true;
+
+					if(mpacket.sequenceNumber > this.sequenceNumber){
+						
+					}
 				} else if(received.type == 400) {
 					incomingRetransmitQueue.add(received);
 					retransmitting = true;
@@ -91,12 +95,12 @@ public class ClientListenerThread implements Runnable {
 				}
 			}		
 
-			int timeouts = 0;
+			int timeouts = 0, timeout_time = 300;
 			this.timer = System.currentTimeMillis();
 			while(eventQueue.peek().sequenceNumber != this.sequenceNumber && timeouts < 3) {
                 if(eventQueue.peek().type == 300 && eventQueue.peek().sequenceNumber < this.sequenceNumber) eventQueue.poll();
-				if(System.currentTimeMillis() - this.timer > 300) {
-                    System.out.println("ClientListenerThread: asking for event packet " + this.timer + " " + System.currentTimeMillis());
+				if(System.currentTimeMillis() - this.timer > timeout_time*(timeouts+1)) {
+                    System.out.println("asking for event packet " + this.timer + " " + System.currentTimeMillis());
 					timeouts++;
 					this.timer = System.currentTimeMillis();
 					int myPID = clientTable.get(name).pid;

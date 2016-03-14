@@ -73,19 +73,32 @@ public class RetransmitThread implements Runnable {
 						String[] info = retransmit.name.split(",");
 						int pid = Integer.parseInt(info[0]);
 						int seqNum = Integer.parseInt(info[1]);
+						int localSeqNum = Integer.parseInt(info[2]);
 						Object[] mPackets = sequencerHoldbackQueue.toArray();
 						boolean found = false;
+						int max_seq = -1;
                         for(int i = 0; i < mPackets.length; i++) {
                             MPacket packet = (MPacket) mPackets[i];
                             if(Debug.debug) System.out.println(packet);
 							if(packet.sequenceNumber == seqNum) {
+								//if seqNum is larger than all then we want to resend event packet to sequencer
                                 packet.timestamp = System.currentTimeMillis();
 								MSocket mSocket = pidtoMSocketMap.get(pid);
 								mSocket.writeObject(packet);
 								found = true;
-								break;
 							}
+							if(packet.sequenceNumber> max_seq){
+								max_seq = packet.sequenceNumber;
+							}
+							else continue;
 						}
+						if(max_seq < seqNum){
+							String send = "0" + "," + pid + "," + localSeqNum;
+							MPacket retran = new MPacket(send, 400, 401);
+							outgoingRetransmitQueue.add(retran);
+							System.out.println(" RetransmitThread:Asking for packet: " + localSeqNum +" from " + pid);
+						}
+						
 						if(!found) System.out.println("RetransmitThread: FAILURE: Empty ueue");
 					}
 				}
