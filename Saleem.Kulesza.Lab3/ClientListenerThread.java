@@ -80,10 +80,6 @@ public class ClientListenerThread implements Runnable {
 					MPacket mpacket = processOrderPacket(received);					
 					masterOrderQueue.add(mpacket);
 					receivedOrder = true;
-
-					if(mpacket.sequenceNumber > this.sequenceNumber){
-						
-					}
 				} else if(received.type == 400) {
 					incomingRetransmitQueue.add(received);
 					retransmitting = true;
