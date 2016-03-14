@@ -79,7 +79,7 @@ public class MasterThread implements Runnable {
 		        while(masterOrderQueue.peek() != null && masterOrderQueue.peek().sequenceNumber != this.sequenceNumber && timeouts < 3) {
 		            //do nothing
 					if(masterOrderQueue.peek().type == 300 && masterOrderQueue.peek().sequenceNumber < this.sequenceNumber) masterOrderQueue.poll();
-                    System.out.println("MasterThread: waiting for order packet ");
+                    //System.out.println("MasterThread: waiting for order packet ");
 
 					if(System.currentTimeMillis() - this.timer > timeout_time*(timeouts+1)) {
                         System.out.println("MasterThread: asking for order packet " + this.timer + " " + System.currentTimeMillis());

@@ -90,7 +90,7 @@ public class RetransmitThread implements Runnable {
 							if(packet.sequenceNumber> max_seq){
 								max_seq = packet.sequenceNumber;
 							}
-							else continue;
+							//else continue;
 						}
 						if(max_seq < seqNum){
 							String send = "0" + "," + pid + "," + localSeqNum;

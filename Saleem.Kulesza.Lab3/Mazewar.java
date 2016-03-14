@@ -87,6 +87,7 @@ public class Mazewar extends JFrame {
          */
         private Hashtable<String, Client> clientTable = null;
 
+        public int[] sequenceNumbers;
 
 	private Hashtable<Integer, String> pidClientMap = null;
 	
@@ -334,6 +335,7 @@ if(Debug.debug) System.out.println("starting threads");
 		
 		int i = 0, j=0, k = 0;
 		MSocket[] socketList = new MSocket[players.length - 1];
+        this.sequenceNumbers = new int[players.length - 1];
         
         //Start a new listener thread - 4 threads that receives all packets and puts them in main receiver queue
 		for(Player player: players){
@@ -352,7 +354,9 @@ if(Debug.debug) System.out.println("starting threads");
 					MSocket mSocketReceive = mServerSocket.accept();					
 					
                     if(Debug.debug) System.out.println("ping");
-					new Thread(new ClientListenerThread(name, mSocketReceive, clientTable, incomingQueue, sequencer, masterOrderQueue, masterHoldingList, outgoingRetransmitQueue, incomingRetransmitQueue)).start();
+					new Thread(new ClientListenerThread(name, mSocketReceive, clientTable, incomingQueue, sequencer, masterOrderQueue, masterHoldingList, outgoingRetransmitQueue, incomingRetransmitQueue, this.sequenceNumbers[j])).start();
+                    
+                    new Thread(new RequestThread(name, mSocketReceive, clientTable, incomingQueue, sequencer, masterOrderQueue, masterHoldingList, outgoingRetransmitQueue, incomingRetransmitQueue, this.sequenceNumbers[j])).start();
 					
 //					if(Debug.debug && guiClient.pid == i) System.out.println(socketList[j].socket.getPort());
 					j++;	
@@ -383,7 +387,8 @@ if(Debug.debug) System.out.println("starting threads");
 		new Thread(new ClientSenderThread(socketList, eventQueue, selfEventQueue, outgoingRetransmitQueue, incomingRetransmitQueue, pidtoMSocketMap, holdbackQueue, outgoingOrderRetransmitQueue, sequencerHoldbackQueue)).start();
         
         new Thread(new RetransmitThread(socketList, outgoingRetransmitQueue, incomingRetransmitQueue, pidtoMSocketMap, holdbackQueue, outgoingOrderRetransmitQueue, sequencerHoldbackQueue)).start();
-
+            
+            
 		if(guiClient.pid == 0) new Thread(new SequencerThread(incomingQueue, eventQueue, clientTable)).start();
             
         new Thread(new MasterThread(masterOrderQueue, masterHoldingList, clientTable,sequencerHoldbackQueue, guiClient.getName(), outgoingOrderRetransmitQueue, outgoingRetransmitQueue)).start();
